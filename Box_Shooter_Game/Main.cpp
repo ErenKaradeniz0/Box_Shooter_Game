@@ -40,34 +40,32 @@ void DrawExplosion(GameObject* obj) {
     FillRect(screenMatrix, globalParams->alien.x, globalParams->alien.y,
         globalParams->alien.width, globalParams->alien.height,
         0);
-    int explosionX = obj->x;
-    int explosionY = obj->y;
     if (obj->explosionFrame > 10) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
-        FillRect(screenMatrix, 30, 30, explosionX + 2, explosionY + 2, 0);
+        FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0x000000);
 
         return;
     }
 
-
-    FillRect(screenMatrix, explosionX, explosionY, 30, 30, 0x000000);
+    FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0x000000);
     switch (obj->explosionType) {
     case 1:
-        explosionX += obj->explosionFrame + 2;
-        explosionY -= obj->explosionFrame + 2;
+        obj->x = obj->x + 2;
+        obj->y = obj->y - 2;
         break;
     case 2:
-        explosionY -= obj->explosionFrame + 2;
+        obj->y = obj->y - 2;
         break;
     case 3:
-        explosionX -= obj->explosionFrame + 2;
-        explosionY -= obj->explosionFrame + 2;
+        obj->x = obj->x - 2;
+        obj->y = obj->y - 2;
         break;
     }
-    FillRect(screenMatrix, explosionX, explosionY, 30, 30, 0xFFFF00);
+    FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0xFFFFFF);
     obj->explosionFrame++;
+
 }
 
 void AnimationThread(LPVOID param) {
@@ -75,6 +73,12 @@ void AnimationThread(LPVOID param) {
         DisplayImage(FRM1, screenMatrix);
         Sleep(30);
     }
+    
+    // Game Over ekraný
+    screenMatrix = 0xFF0000;
+    ICG_SetFont(50, 0, "Arial");
+    Impress12x20(screenMatrix, 250, 300, "GAME OVER", 0xFFFFFF);
+    DisplayImage(FRM1, screenMatrix);
 }
 
 void ShipThread(LPVOID param) {
@@ -108,7 +112,9 @@ void AlienThread(LPVOID param) {
         }
 
         if (globalParams->alien.explosionType > 0) {
+            Sleep(10);
             DrawExplosion(&globalParams->alien);
+
         }
         else {
             // Delete old position
@@ -118,8 +124,12 @@ void AlienThread(LPVOID param) {
             // Move alien
             globalParams->alien.y += 2;
 
-            // Screen overflow check
-            if (globalParams->alien.y > 600) {
+
+            if (globalParams->alien.y > 600 || // Ekrandan çýkma kontrolü
+                (globalParams->alien.y + globalParams->alien.height >= globalParams->ship.y && // Çarpýþma kontrolü
+                    globalParams->alien.x + globalParams->alien.width >= globalParams->ship.x &&
+                    globalParams->alien.x <= globalParams->ship.x + globalParams->ship.width)) {
+                gameRunning = false;
                 globalParams->alien.isAlive = false;
                 continue;
             }
@@ -190,32 +200,36 @@ void BulletThread(LPVOID param) {
 
 
 void StartGame() {
+    // Eðer oyun çalýþmýyorsa (game over olmuþ veya ilk baþlangýç)
     if (!gameRunning) {
+        // Önce bütün thread'leri temizle
+        _WaitThread(TAnimation);
+        _WaitThread(TShip);
+        _WaitThread(TAlien);
+        _WaitThread(TBullet);
+
+        // Ekraný temizle
+        screenMatrix = 0;
+
         if (globalParams != nullptr) {
             delete globalParams;
         }
 
+        // Yeni oyun parametrelerini ayarla
         globalParams = new ThreadParams{
             {300, 580, 60, 20, true, 0, 0},    // ship
             {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
             {0, 0, 10, 20, false, 0, 0}        // bullet
         };
 
-        screenMatrix = 0;
+        // Oyunu baþlat
         gameRunning = true;
 
-        _WaitThread(TAnimation);
+        // Thread'leri yeniden baþlat
         _CreateThread(TAnimation, AnimationThread);
-
-        _WaitThread(TShip);
         _CreateThread(TShip, ShipThread);
-
-        _WaitThread(TAlien);
         _CreateThread(TAlien, AlienThread);
-
-        _WaitThread(TBullet);
         _CreateThread(TBullet, BulletThread);
-
 
         SetFocus(ICG_GetMainWindow());
     }
