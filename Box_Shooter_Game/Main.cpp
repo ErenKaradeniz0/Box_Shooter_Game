@@ -40,34 +40,32 @@ void DrawExplosion(GameObject* obj) {
     FillRect(screenMatrix, globalParams->alien.x, globalParams->alien.y,
         globalParams->alien.width, globalParams->alien.height,
         0);
-    int explosionX = obj->x;
-    int explosionY = obj->y;
     if (obj->explosionFrame > 10) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
-        FillRect(screenMatrix, 30, 30, explosionX + 2, explosionY + 2, 0);
+        FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0x000000);
 
         return;
     }
 
-
-    FillRect(screenMatrix, explosionX, explosionY, 30, 30, 0x000000);
+    FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0x000000);
     switch (obj->explosionType) {
     case 1:
-        explosionX += obj->explosionFrame + 2;
-        explosionY -= obj->explosionFrame + 2;
+        obj->x = obj->x + 2;
+        obj->y = obj->y - 2;
         break;
     case 2:
-        explosionY -= obj->explosionFrame + 2;
+        obj->y = obj->y - 2;
         break;
     case 3:
-        explosionX -= obj->explosionFrame + 2;
-        explosionY -= obj->explosionFrame + 2;
+        obj->x = obj->x - 2;
+        obj->y = obj->y - 2;
         break;
     }
-    FillRect(screenMatrix, explosionX, explosionY, 30, 30, 0xFFFF00);
+    FillRect(screenMatrix, obj->x, obj->y, 30, 30, 0xFFFFFF);
     obj->explosionFrame++;
+
 }
 
 void AnimationThread(LPVOID param) {
@@ -108,7 +106,9 @@ void AlienThread(LPVOID param) {
         }
 
         if (globalParams->alien.explosionType > 0) {
+            Sleep(10);
             DrawExplosion(&globalParams->alien);
+
         }
         else {
             // Delete old position
