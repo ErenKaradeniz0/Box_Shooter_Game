@@ -35,7 +35,7 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
     FillRect(screenMatrix, params->alien.x, params->alien.y,
         params->alien.width, params->alien.height, 0);
 
-    if (obj->x < 0 || obj->x > 700 || obj->y < -40) {
+    if (obj->explosionFrame > 10) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
