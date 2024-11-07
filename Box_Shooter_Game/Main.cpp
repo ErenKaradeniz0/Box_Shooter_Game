@@ -75,6 +75,12 @@ void AnimationThread(LPVOID param) {
         DisplayImage(FRM1, screenMatrix);
         Sleep(30);
     }
+    
+    // Game Over ekraný
+    screenMatrix = 0xFF0000;
+    ICG_SetFont(50, 0, "Arial");
+    Impress12x20(screenMatrix, 250, 300, "GAME OVER", 0xFFFFFF);
+    DisplayImage(FRM1, screenMatrix);
 }
 
 void ShipThread(LPVOID param) {
@@ -118,8 +124,12 @@ void AlienThread(LPVOID param) {
             // Move alien
             globalParams->alien.y += 2;
 
-            // Screen overflow check
-            if (globalParams->alien.y > 600) {
+
+            if (globalParams->alien.y > 600 || // Ekrandan çýkma kontrolü
+                (globalParams->alien.y + globalParams->alien.height >= globalParams->ship.y && // Çarpýþma kontrolü
+                    globalParams->alien.x + globalParams->alien.width >= globalParams->ship.x &&
+                    globalParams->alien.x <= globalParams->ship.x + globalParams->ship.width)) {
+                gameRunning = false;
                 globalParams->alien.isAlive = false;
                 continue;
             }
@@ -190,32 +200,36 @@ void BulletThread(LPVOID param) {
 
 
 void StartGame() {
+    // Eðer oyun çalýþmýyorsa (game over olmuþ veya ilk baþlangýç)
     if (!gameRunning) {
+        // Önce bütün thread'leri temizle
+        _WaitThread(TAnimation);
+        _WaitThread(TShip);
+        _WaitThread(TAlien);
+        _WaitThread(TBullet);
+
+        // Ekraný temizle
+        screenMatrix = 0;
+
         if (globalParams != nullptr) {
             delete globalParams;
         }
 
+        // Yeni oyun parametrelerini ayarla
         globalParams = new ThreadParams{
             {300, 580, 60, 20, true, 0, 0},    // ship
             {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
             {0, 0, 10, 20, false, 0, 0}        // bullet
         };
 
-        screenMatrix = 0;
+        // Oyunu baþlat
         gameRunning = true;
 
-        _WaitThread(TAnimation);
+        // Thread'leri yeniden baþlat
         _CreateThread(TAnimation, AnimationThread);
-
-        _WaitThread(TShip);
         _CreateThread(TShip, ShipThread);
-
-        _WaitThread(TAlien);
         _CreateThread(TAlien, AlienThread);
-
-        _WaitThread(TBullet);
         _CreateThread(TBullet, BulletThread);
-
 
         SetFocus(ICG_GetMainWindow());
     }
