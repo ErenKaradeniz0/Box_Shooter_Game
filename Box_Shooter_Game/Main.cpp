@@ -20,8 +20,6 @@ struct ThreadParams {
     bool gameRunning;
 };
 
-ThreadParams* globalParams = nullptr;
-
 // Thread function headers
 void _WaitThread(HANDLE thread);
 void _CreateThread(HANDLE thread, void* threadMain);
@@ -188,14 +186,11 @@ void ScoreThread(ThreadParams* params) {
 }
 
 void StartGame() {
-    if (globalParams) {
-        // Reset the previous game
-        delete globalParams;
-        screenMatrix = 0; // Clear the entire screen
-    }
+    // Reset the screen
+    screenMatrix = 0;
 
-    // Starting a new game
-    globalParams = new ThreadParams{
+    // Define ThreadParams
+    auto params = new ThreadParams{
         {300, 580, 60, 20, true, 0, 0},      // ship
         {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
         {0, 0, 10, 20, false, 0, 0},         // bullet
@@ -203,15 +198,16 @@ void StartGame() {
         true                                 // gameRunning
     };
 
-    // Start threads passing `globalParams`
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, globalParams, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, globalParams, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, globalParams, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, globalParams, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ScoreThread, globalParams, 0, NULL);
+    // Start threads passing `params`
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ScoreThread, params, 0, NULL);
 
     SetFocus(ICG_GetMainWindow());
 }
+
 
 
 void WhenKeyPressed(int k) {
