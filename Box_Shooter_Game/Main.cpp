@@ -1,4 +1,4 @@
-#include "icb_gui.h"
+﻿#include "icb_gui.h"
 
 // Globals
 int keypressed;
@@ -17,12 +17,11 @@ struct ThreadParams {
     GameObject alien;
     GameObject bullet;
     int FRM1;
-    bool gameRunning;
+    bool* gameRunning;
+    bool& isGameRunning() {
+        return *gameRunning;
+    }
 };
-
-// Thread function headers
-void _WaitThread(HANDLE thread);
-void _CreateThread(HANDLE thread, void* threadMain);
 
 void ICGUI_Create() {
     ICG_MWTitle("Space Shooter");
@@ -87,7 +86,7 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
 }
 
 void AnimationThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->isGameRunning()) {
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
     }
@@ -97,10 +96,12 @@ void AnimationThread(ThreadParams* params) {
     ICG_SetFont(50, 0, "Arial");
     Impress12x20(screenMatrix, 275, 300, "GAME OVER", 0xFFFFFF);
     DisplayImage(params->FRM1, screenMatrix);
+    delete params;
 }
 
+
 void ShipThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->isGameRunning()) {
         // Delete old position
         FillRect(screenMatrix, params->ship.x, params->ship.y,
             params->ship.width, params->ship.height, 0);
@@ -118,7 +119,7 @@ void ShipThread(ThreadParams* params) {
 }
 
 void AlienThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->isGameRunning()) {
         if (!params->alien.isAlive) {
             params->alien.x = rand() % 580;
             params->alien.y = 0;
@@ -143,7 +144,7 @@ void AlienThread(ThreadParams* params) {
                 (params->alien.y + params->alien.height >= params->ship.y &&
                     params->alien.x + params->alien.width >= params->ship.x &&
                     params->alien.x <= params->ship.x + params->ship.width)) {
-                params->gameRunning = false;
+                params->isGameRunning() = false;
                 params->alien.isAlive = false;
                 continue;
             }
@@ -158,7 +159,7 @@ void AlienThread(ThreadParams* params) {
 }
 
 void BulletThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->isGameRunning()) {
         if (keypressed == 32 && !params->bullet.isAlive) {
             params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
             params->bullet.y = params->ship.y - params->bullet.height;
@@ -212,20 +213,25 @@ void ScoreThread(ThreadParams* params) {
     // Score processing can be added here.
 }
 
-void StartGame() {
+void StartGame(void* gameRunning) {
+    bool* gameRunningPtr = (bool*)gameRunning;
+
+    if (*gameRunningPtr) return;
+
+    *gameRunningPtr = true;
+
     // Reset the screen
     screenMatrix = 0;
 
     // Define ThreadParams
-    auto params = new ThreadParams{
-        {300, 580, 40, 10, true, 0, 0},      // ship
-        {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
-        {0, 0, 2, 10, false, 0, 0},         // bullet
-        ICG_FrameMedium(5, 40, 700, 700),    // frm1
-        true                                 // gameRunning
+    ThreadParams* params = new ThreadParams{
+        {300, 580, 40, 10, true, 0, 0},        // ship
+        {rand() % 580, 0, 40, 40, true, 0, 0}, // alien
+        {0, 0, 2, 10, false, 0, 0},            // bullet
+        ICG_FrameMedium(5, 40, 700, 700),      // frm1
+        gameRunningPtr                        // gameRunning durumu aktarıldı
     };
 
-    // Start threads passing `params`
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, params, 0, NULL);
@@ -235,18 +241,19 @@ void StartGame() {
     SetFocus(ICG_GetMainWindow());
 }
 
-
-
 void WhenKeyPressed(int k) {
     keypressed = k;
     Sleep(30);
     keypressed = 0;
 }
 
+
 void ICGUI_main() {
     CreateImage(screenMatrix, 700, 700, ICB_UINT);
     screenMatrix = 0;
 
-    ICG_Button(5, 5, 120, 25, "START GAME", StartGame);
+    static bool gameRunning = false;
+    ICG_Button(5, 5, 120, 25, "START GAME", StartGame, &gameRunning);
+
     ICG_SetOnKeyPressed(WhenKeyPressed);
 }
