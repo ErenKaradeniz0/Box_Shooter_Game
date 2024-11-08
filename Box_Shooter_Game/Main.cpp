@@ -56,6 +56,33 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         break;
     }
     FillRect(screenMatrix, obj->x, obj->y, params->alien.width, params->alien.height, 0xFFFF00);
+    //FillRect(screenMatrix, obj->x+((params->alien.width-(obj->explosionFrame*(params->alien.width/10)))/2), obj->y, obj->explosionFrame*(params->alien.width/10), params->alien.height, 0x000000);
+    //FillRect(screenMatrix, obj->x, obj->y+((params->alien.height - (obj->explosionFrame*(params->alien.width/10))) / 2), params->alien.width, obj->explosionFrame*(params->alien.height/10), 0x000000);
+    
+    switch (obj->explosionType) {
+    case 1:
+        FillRect(screenMatrix, obj->x , 
+            (obj->y + params->alien.height) - (obj->explosionFrame * (params->alien.height / 10)), 
+            obj->explosionFrame * (params->alien.width / 10), 
+            obj->explosionFrame * (params->alien.height / 10), 0x000000);
+        
+        break;
+    case 2:
+        FillRect(screenMatrix, obj->x + ((params->alien.width - (obj->explosionFrame * (params->alien.width / 10))) / 2), obj->y, obj->explosionFrame * (params->alien.width / 10), params->alien.height, 0x000000);
+        FillRect(screenMatrix, obj->x, obj->y+((params->alien.height - (obj->explosionFrame*(params->alien.width/10))) / 2), params->alien.width, obj->explosionFrame*(params->alien.height/10), 0x000000);
+
+       /* FillRect(screenMatrix, obj->x+((params->alien.width-(obj->explosionFrame*(params->alien.width/10)))/2), 
+            obj->y, obj->explosionFrame*(params->alien.width/10), params->alien.height, 0x000000);*/
+        break;
+    case 3:
+        FillRect(screenMatrix, (obj->x + params->alien.width) - (obj->explosionFrame * (params->alien.width / 10)), 
+            (obj->y + params->alien.height) - (obj->explosionFrame * (params->alien.height / 10)), 
+            obj->explosionFrame * (params->alien.width / 10 ), 
+            obj->explosionFrame * (params->alien.height / 10), 0x000000);
+        break;
+    }
+
+
     obj->explosionFrame++;
 }
 
@@ -191,9 +218,9 @@ void StartGame() {
 
     // Define ThreadParams
     auto params = new ThreadParams{
-        {300, 580, 60, 20, true, 0, 0},      // ship
+        {300, 580, 40, 10, true, 0, 0},      // ship
         {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
-        {0, 0, 10, 20, false, 0, 0},         // bullet
+        {0, 0, 2, 10, false, 0, 0},         // bullet
         ICG_FrameMedium(5, 40, 700, 700),    // frm1
         true                                 // gameRunning
     };
