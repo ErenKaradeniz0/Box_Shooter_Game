@@ -3,6 +3,7 @@
 // Globals
 int keypressed;
 ICBYTES screenMatrix;
+HANDLE gameThreads[5] = { NULL }; // Store thread handles
 
 struct GameObject {
     int x, y;
@@ -20,9 +21,17 @@ struct ThreadParams {
     bool gameRunning;
 };
 
-// Thread function headers
-void _WaitThread(HANDLE thread);
-void _CreateThread(HANDLE thread, void* threadMain);
+ThreadParams* currentGame = nullptr;
+
+void CleanupThreads() {
+    for (int i = 0; i < 5; i++) {
+        if (gameThreads[i] != NULL) {
+            TerminateThread(gameThreads[i], 0);
+            CloseHandle(gameThreads[i]);
+            gameThreads[i] = NULL;
+        }
+    }
+}
 
 void ICGUI_Create() {
     ICG_MWTitle("Space Shooter");
@@ -61,19 +70,25 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
 
 void AnimationThread(ThreadParams* params) {
     while (params->gameRunning) {
-        DisplayImage(params->FRM1, screenMatrix);
-        Sleep(30);
+        if (params == currentGame) { // Only render if this is current game
+            DisplayImage(params->FRM1, screenMatrix);
+            Sleep(30);
+        }
+        else {
+            break;
+        }
     }
 
-    // Game Over screen
-    screenMatrix = 0x000055;
-    ICG_SetFont(50, 0, "Arial");
-    Impress12x20(screenMatrix, 275, 300, "GAME OVER", 0xFFFFFF);
-    DisplayImage(params->FRM1, screenMatrix);
+    if (params == currentGame) { // Only show game over if this is current game
+        screenMatrix = 0x000055;
+        ICG_SetFont(50, 0, "Arial");
+        Impress12x20(screenMatrix, 275, 300, "GAME OVER", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+    }
 }
 
 void ShipThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->gameRunning && params == currentGame) {
         // Delete old position
         FillRect(screenMatrix, params->ship.x, params->ship.y,
             params->ship.width, params->ship.height, 0);
@@ -91,7 +106,7 @@ void ShipThread(ThreadParams* params) {
 }
 
 void AlienThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->gameRunning && params == currentGame) {
         if (!params->alien.isAlive) {
             params->alien.x = rand() % 580;
             params->alien.y = 0;
@@ -105,11 +120,9 @@ void AlienThread(ThreadParams* params) {
             DrawExplosion(&params->alien, params);
         }
         else {
-            // Delete old position
             FillRect(screenMatrix, params->alien.x, params->alien.y,
                 params->alien.width, params->alien.height, 0);
 
-            // Move alien
             params->alien.y += 4;
 
             if (params->alien.y > 600 ||
@@ -121,7 +134,6 @@ void AlienThread(ThreadParams* params) {
                 continue;
             }
 
-            // Print new position of alien
             FillRect(screenMatrix, params->alien.x, params->alien.y,
                 params->alien.width, params->alien.height, 0x00FF00);
         }
@@ -131,7 +143,7 @@ void AlienThread(ThreadParams* params) {
 }
 
 void BulletThread(ThreadParams* params) {
-    while (params->gameRunning) {
+    while (params->gameRunning && params == currentGame) {
         if (keypressed == 32 && !params->bullet.isAlive) {
             params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
             params->bullet.y = params->ship.y - params->bullet.height;
@@ -140,14 +152,11 @@ void BulletThread(ThreadParams* params) {
         }
 
         if (params->bullet.isAlive) {
-            // Delete old position of bullet
             FillRect(screenMatrix, params->bullet.x, params->bullet.y,
                 params->bullet.width, params->bullet.height, 0);
 
-            // Move Bullet
             params->bullet.y -= 10;
 
-            // Collision Check
             if (params->alien.isAlive &&
                 params->bullet.y <= params->alien.y + params->alien.height &&
                 params->bullet.y + params->bullet.height >= params->alien.y &&
@@ -166,13 +175,11 @@ void BulletThread(ThreadParams* params) {
                 continue;
             }
 
-            // Screen overflow check
             if (params->bullet.y < 0) {
                 params->bullet.isAlive = false;
                 continue;
             }
 
-            // Print new position of bullet
             FillRect(screenMatrix, params->bullet.x, params->bullet.y,
                 params->bullet.width, params->bullet.height, 0x0000FF);
         }
@@ -181,39 +188,41 @@ void BulletThread(ThreadParams* params) {
     }
 }
 
-void ScoreThread(ThreadParams* params) {
-    // Score processing can be added here.
-}
-
 void StartGame() {
+    // Cleanup any existing game threads
+    if (currentGame != nullptr) {
+        currentGame->gameRunning = false;
+        CleanupThreads();
+        delete currentGame;
+    }
+
     // Reset the screen
     screenMatrix = 0;
 
-    // Define ThreadParams
-    auto params = new ThreadParams{
+    // Create new game state
+    currentGame = new ThreadParams{
         {300, 580, 60, 20, true, 0, 0},      // ship
         {rand() % 580, 0, 40, 40, true, 0, 0},  // alien
         {0, 0, 10, 20, false, 0, 0},         // bullet
         ICG_FrameMedium(5, 40, 700, 700),    // frm1
-        true                                 // gameRunning
+        true                                  // gameRunning
     };
 
-    // Start threads passing `params`
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ScoreThread, params, 0, NULL);
+    // Start new threads
+    gameThreads[0] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, currentGame, 0, NULL);
+    gameThreads[1] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, currentGame, 0, NULL);
+    gameThreads[2] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, currentGame, 0, NULL);
+    gameThreads[3] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, currentGame, 0, NULL);
 
     SetFocus(ICG_GetMainWindow());
 }
 
-
-
 void WhenKeyPressed(int k) {
-    keypressed = k;
-    Sleep(30);
-    keypressed = 0;
+    if (currentGame && currentGame->gameRunning) {
+        keypressed = k;
+        Sleep(30);
+        keypressed = 0;
+    }
 }
 
 void ICGUI_main() {
