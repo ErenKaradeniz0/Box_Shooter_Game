@@ -1,6 +1,10 @@
 ﻿#include "icb_gui.h"
 
 // Globals
+/*
+5. Note that the use of global variables is restricted, except for the designated ICBYTES
+object and the keypressed variable.
+*/
 int keypressed;
 ICBYTES screenMatrix;
 
@@ -14,7 +18,7 @@ struct GameObject {
 
 struct ThreadParams {
     GameObject ship;
-    GameObject alien;
+    GameObject box;
     GameObject bullet;
     int FRM1;
     bool* gameRunning;
@@ -23,66 +27,10 @@ struct ThreadParams {
     }
 };
 
+//Create window
 void ICGUI_Create() {
     ICG_MWTitle("Space Shooter");
     ICG_MWSize(700, 700);
-}
-
-void DrawExplosion(GameObject* obj, ThreadParams* params) {
-    FillRect(screenMatrix, params->alien.x, params->alien.y,
-        params->alien.width, params->alien.height, 0);
-
-    if (obj->explosionFrame > 10) {
-        obj->isAlive = false;
-        obj->explosionType = 0;
-        obj->explosionFrame = 0;
-        FillRect(screenMatrix, obj->x, obj->y, params->alien.width, params->alien.height, 0x000000);
-        return;
-    }
-
-    FillRect(screenMatrix, obj->x, obj->y, params->alien.width, params->alien.height, 0x000000);
-    switch (obj->explosionType) {
-    case 1:
-        obj->x = obj->x + 8;
-        obj->y = obj->y - 8;
-        break;
-    case 2:
-        obj->y = obj->y - 8;
-        break;
-    case 3:
-        obj->x = obj->x - 8;
-        obj->y = obj->y - 8;
-        break;
-    }
-    FillRect(screenMatrix, obj->x, obj->y, params->alien.width, params->alien.height, 0xFFFF00);
-    //FillRect(screenMatrix, obj->x+((params->alien.width-(obj->explosionFrame*(params->alien.width/10)))/2), obj->y, obj->explosionFrame*(params->alien.width/10), params->alien.height, 0x000000);
-    //FillRect(screenMatrix, obj->x, obj->y+((params->alien.height - (obj->explosionFrame*(params->alien.width/10))) / 2), params->alien.width, obj->explosionFrame*(params->alien.height/10), 0x000000);
-    
-    switch (obj->explosionType) {
-    case 1:
-        FillRect(screenMatrix, obj->x , 
-            (obj->y + params->alien.height) - (obj->explosionFrame * (params->alien.height / 10)), 
-            obj->explosionFrame * (params->alien.width / 10), 
-            obj->explosionFrame * (params->alien.height / 10), 0x000000);
-        
-        break;
-    case 2:
-        FillRect(screenMatrix, obj->x + ((params->alien.width - (obj->explosionFrame * (params->alien.width / 10))) / 2), obj->y, obj->explosionFrame * (params->alien.width / 10), params->alien.height, 0x000000);
-        FillRect(screenMatrix, obj->x, obj->y+((params->alien.height - (obj->explosionFrame*(params->alien.width/10))) / 2), params->alien.width, obj->explosionFrame*(params->alien.height/10), 0x000000);
-
-       /* FillRect(screenMatrix, obj->x+((params->alien.width-(obj->explosionFrame*(params->alien.width/10)))/2), 
-            obj->y, obj->explosionFrame*(params->alien.width/10), params->alien.height, 0x000000);*/
-        break;
-    case 3:
-        FillRect(screenMatrix, (obj->x + params->alien.width) - (obj->explosionFrame * (params->alien.width / 10)), 
-            (obj->y + params->alien.height) - (obj->explosionFrame * (params->alien.height / 10)), 
-            obj->explosionFrame * (params->alien.width / 10 ), 
-            obj->explosionFrame * (params->alien.height / 10), 0x000000);
-        break;
-    }
-
-
-    obj->explosionFrame++;
 }
 
 void AnimationThread(ThreadParams* params) {
@@ -98,7 +46,6 @@ void AnimationThread(ThreadParams* params) {
     DisplayImage(params->FRM1, screenMatrix);
     delete params;
 }
-
 
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
@@ -118,40 +65,101 @@ void ShipThread(ThreadParams* params) {
     }
 }
 
-void AlienThread(ThreadParams* params) {
+//DrawExplosion
+void DrawExplosion(GameObject* obj, ThreadParams* params) {
+    FillRect(screenMatrix, params->box.x, params->box.y,
+        params->box.width, params->box.height, 0);
+
+    if (obj->explosionFrame > 10) {
+        obj->isAlive = false;
+        obj->explosionType = 0;
+        obj->explosionFrame = 0;
+        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000);
+        return;
+    }
+
+    FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000);
+    switch (obj->explosionType) {
+    case 1:
+        obj->x = obj->x + 8;
+        obj->y = obj->y - 8;
+        break;
+    case 2:
+        obj->y = obj->y - 8;
+        break;
+    case 3:
+        obj->x = obj->x - 8;
+        obj->y = obj->y - 8;
+        break;
+    }
+    FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0xFFFF00);
+    //FillRect(screenMatrix, obj->x+((params->box.width-(obj->explosionFrame*(params->box.width/10)))/2), obj->y, obj->explosionFrame*(params->box.width/10), params->box.height, 0x000000);
+    //FillRect(screenMatrix, obj->x, obj->y+((params->box.height - (obj->explosionFrame*(params->box.width/10))) / 2), params->box.width, obj->explosionFrame*(params->box.height/10), 0x000000);
+
+    switch (obj->explosionType) {
+    case 1:
+        //left shoot
+        //FillRect(screenMatrix, obj->x , 
+        //    (obj->y + params->box.height) - (obj->explosionFrame * (params->box.height / 10)), 
+        //    obj->explosionFrame * (params->box.width / 10), 
+        //    obj->explosionFrame * (params->box.height / 10), 0x000000);
+
+        break;
+    case 2:
+        //middle shot
+        FillRect(screenMatrix, obj->x + ((params->box.width - (obj->explosionFrame * (params->box.width / 10))) / 2), obj->y, obj->explosionFrame * (params->box.width / 10), params->box.height, 0x000000);
+        FillRect(screenMatrix, obj->x, obj->y + ((params->box.height - (obj->explosionFrame * (params->box.width / 10))) / 2), params->box.width, obj->explosionFrame * (params->box.height / 10), 0x000000);
+
+        /* FillRect(screenMatrix, obj->x+((params->box.width-(obj->explosionFrame*(params->box.width/10)))/2),
+             obj->y, obj->explosionFrame*(params->box.width/10), params->box.height, 0x000000);*/
+        break;
+    case 3:
+        //right shoot
+        //FillRect(screenMatrix, (obj->x + params->box.width) - (obj->explosionFrame * (params->box.width / 10)), 
+        //    (obj->y + params->box.height) - (obj->explosionFrame * (params->box.height / 10)), 
+        //    obj->explosionFrame * (params->box.width / 10 ), 
+        //    obj->explosionFrame * (params->box.height / 10), 0x000000);
+        break;
+    }
+
+
+    obj->explosionFrame++;
+}
+
+void BoxThread(ThreadParams* params) {
     while (params->isGameRunning()) {
-        if (!params->alien.isAlive) {
-            params->alien.x = rand() % 580;
-            params->alien.y = 0;
-            params->alien.isAlive = true;
-            params->alien.explosionType = 0;
-            params->alien.explosionFrame = 0;
+        if (!params->box.isAlive) {
+            params->box.x = rand() % 580;
+            params->box.y = 0;
+            params->box.isAlive = true;
+            params->box.explosionType = 0;
+            params->box.explosionFrame = 0;
         }
 
-        if (params->alien.explosionType > 0) {
+        if (params->box.explosionType > 0) {
             Sleep(10);
-            DrawExplosion(&params->alien, params);
+            DrawExplosion(&params->box, params);
         }
         else {
             // Delete old position
-            FillRect(screenMatrix, params->alien.x, params->alien.y,
-                params->alien.width, params->alien.height, 0);
+            FillRect(screenMatrix, params->box.x, params->box.y,
+                params->box.width, params->box.height, 0);
 
-            // Move alien
-            params->alien.y += 4;
+            // Move box
+            params->box.y += 4;
 
-            if (params->alien.y > 600 ||
-                (params->alien.y + params->alien.height >= params->ship.y &&
-                    params->alien.x + params->alien.width >= params->ship.x &&
-                    params->alien.x <= params->ship.x + params->ship.width)) {
+            if (params->box.y > 600 ||
+                (params->box.y + params->box.height >= params->ship.y &&
+                    params->box.x + params->box.width >= params->ship.x &&
+                    params->box.x <= params->ship.x + params->ship.width)) {
                 params->isGameRunning() = false;
-                params->alien.isAlive = false;
+                params->box.isAlive = false;
                 continue;
             }
 
-            // Print new position of alien
-            FillRect(screenMatrix, params->alien.x, params->alien.y,
-                params->alien.width, params->alien.height, 0x00FF00);
+            // Print new position of box
+            FillRect(screenMatrix, params->box.x, params->box.y,
+                params->box.width, params->box.height, 0x00FF00);
         }
 
         Sleep(10);
@@ -159,6 +167,7 @@ void AlienThread(ThreadParams* params) {
 }
 
 void BulletThread(ThreadParams* params) {
+    int score = 0;
     while (params->isGameRunning()) {
         if (keypressed == 32 && !params->bullet.isAlive) {
             params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
@@ -176,19 +185,37 @@ void BulletThread(ThreadParams* params) {
             params->bullet.y -= 10;
 
             // Collision Check
-            if (params->alien.isAlive &&
-                params->bullet.y <= params->alien.y + params->alien.height &&
-                params->bullet.y + params->bullet.height >= params->alien.y &&
-                params->bullet.x + params->bullet.width >= params->alien.x &&
-                params->bullet.x <= params->alien.x + params->alien.width) {
+            if (params->box.isAlive &&
+                params->bullet.y <= params->box.y + params->box.height &&
+                params->bullet.y + params->bullet.height >= params->box.y &&
+                params->bullet.x + params->bullet.width >= params->box.x &&
+                params->bullet.x <= params->box.x + params->box.width) {
 
-                int hitX = params->bullet.x - params->alien.x;
-                if (hitX < params->alien.width / 3)
-                    params->alien.explosionType = 1;
-                else if (hitX < (params->alien.width * 2) / 3)
-                    params->alien.explosionType = 2;
-                else
-                    params->alien.explosionType = 3;
+                int hitX = params->bullet.x - params->box.x;
+                score++;
+                /*
+                2. When a bullet strikes the left side of a box, specifically within the leftmost 3-unit
+                region, the box will move to the top-right corner.
+                */
+                int leftPart = params->box.width / 3 - 1;
+
+                /*
+                4. A bullet that hits the central 4-unit region of the box will result in the box being
+                destroyed.
+                */
+                int middlePart = params->box.width - leftPart;
+                if (hitX <= leftPart) //3*x*k
+
+                    params->box.explosionType = 1;
+                else if (hitX <= middlePart) //4*x*k
+                    params->box.explosionType = 2;
+
+                /*
+                3. If a bullet hits the right side of the box, within the rightmost 3-unit region, the box
+                will instead move to the top-left corner.
+                */
+                else  //3*x*k
+                    params->box.explosionType = 3;
 
                 params->bullet.isAlive = false;
                 continue;
@@ -209,6 +236,7 @@ void BulletThread(ThreadParams* params) {
     }
 }
 
+
 void ScoreThread(ThreadParams* params) {
     // Score processing can be added here.
 }
@@ -226,7 +254,14 @@ void StartGame(void* gameRunning) {
     // Define ThreadParams
     ThreadParams* params = new ThreadParams{
         {300, 580, 40, 10, true, 0, 0},        // ship
-        {rand() % 580, 0, 40, 40, true, 0, 0}, // alien
+
+        //First requriment
+        /*
+        1. The falling boxes should each be 10*k pixels wide such as 10,20,50... The width is up to you.
+        box size is 40x40  = 10*k x 10*k , k = 4   
+        */
+        {rand() % 580, 0, 40, 40, true, 0, 0}, // box
+
         {0, 0, 2, 10, false, 0, 0},            // bullet
         ICG_FrameMedium(5, 40, 700, 700),      // frm1
         gameRunningPtr                        // gameRunning durumu aktarıldı
@@ -234,7 +269,7 @@ void StartGame(void* gameRunning) {
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AnimationThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)AlienThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ScoreThread, params, 0, NULL);
 
