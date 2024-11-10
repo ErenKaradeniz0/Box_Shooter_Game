@@ -156,13 +156,16 @@ void DrawStartupAndTransition(ThreadParams* params) {
 
 void DrawExplosion(GameObject* obj, ThreadParams* params) {
     //Draw Explosion
-    if (obj->explosionFrame > 10) {
+
+    if ( (obj->explosionFrame > 10 && obj->explosionType==2) || obj->x <= 0-obj->height  || obj->x >= 600 || obj->y < 40 - obj->height ) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
         FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
         return;
     }
+
     int color = 0xFFFF00; // Explosion Color Yellow
     FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, color);
 
@@ -186,6 +189,10 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         break;
     }
     obj->explosionFrame++;
+
+    FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+
+
 }
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
@@ -290,6 +297,7 @@ void BulletThread(ThreadParams* params) {
             }
         }
         Sleep(30);
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
     }
 }
 
