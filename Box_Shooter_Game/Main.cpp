@@ -209,7 +209,7 @@ void BoxThread(ThreadParams* params) {
         if (!params->box.isAlive && params->box.explosionType == 0) {
             // Respawn box
             params->box.x = rand() % 430;
-            params->box.y = 0;
+            params->box.y = 40;
             params->box.isAlive = true;
             params->box.explosionType = 0;
             params->box.explosionFrame = 0;
@@ -296,7 +296,7 @@ void BulletThread(ThreadParams* params) {
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
     //Intro animation
-    DrawStartupAndTransition(params);
+    //DrawStartupAndTransition(params);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
@@ -304,6 +304,8 @@ void DrawThread(ThreadParams* params) {
         // Clear screen
         screenMatrix = 0;
 
+        //GreyLine
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
         // Draw ship
         FillRect(screenMatrix, params->ship.x, params->ship.y,
             params->ship.width, params->ship.height, 0xFF0000);
@@ -346,7 +348,7 @@ void DrawThread(ThreadParams* params) {
         ICG_SetFont(50, 0, "Arial");
         char score[9] = "Score:  ";
         score[6] = '0' + params->score;
-        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
+        Impress12x20(screenMatrix, 400, 13, score, 0xFFFFFF);
 
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
@@ -373,6 +375,7 @@ void DrawThread(ThreadParams* params) {
 }
 
 void StartGame(void* gameRunning) {
+    SetFocus(ICG_GetMainWindow());
     bool* gameRunningPtr = (bool*)gameRunning;
     if (*gameRunningPtr) return;
 
@@ -384,26 +387,23 @@ void StartGame(void* gameRunning) {
     // Define ThreadParams
     int gameScreenX = 500, GameScreenY = 500;
     int shipX = 250, shipY = 485;
-    int boxSize = 40;
+    int boxSize = 40,boxY = 40;
     int bulletWidth = 2, bulletHeight = 10;
     int life = 3;
     int score = 0;
 
 
     ThreadParams* params = new ThreadParams{
-        {shipX, shipY, 40, 10, true, 0, 0},
-        {rand() % (gameScreenX - boxSize) , 0, boxSize, boxSize, true, 0, 0},
-        {0, 0, bulletWidth, bulletHeight, false, 0, 0},
-        {life,10,10,3},
-        ICG_FrameMedium(5, 40, 1, 1),
-        score,
-        gameRunningPtr
+        {shipX, shipY, 40, 10, true, 0, 0},                                     //ship
+        {rand() % (gameScreenX - boxSize) , boxY, boxSize, boxSize, true, 0, 0},   //box
+        {0, 0, bulletWidth, bulletHeight, false, 0, 0},                         //bullet
+        {life,10,10,3},                                                         //heart
+        ICG_FrameMedium(5, 40, 1, 1),                                           //frame
+        score,                                                                  //score
+        gameRunningPtr                                                          //gameRunning
     };
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
-
-
-    SetFocus(ICG_GetMainWindow());
 }
 
 void WhenKeyPressed(int k) {
