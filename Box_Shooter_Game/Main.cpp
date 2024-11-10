@@ -181,6 +181,8 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
 }
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
+    //Intro animation
+    DrawStartupAndTransition(params);
     while (params->isGameRunning()) {
         // Clear screen
         screenMatrix = 0;
@@ -362,7 +364,6 @@ void StartGame(void* gameRunning) {
         score,
         gameRunningPtr
     };
-    DrawStartupAndTransition(params);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
