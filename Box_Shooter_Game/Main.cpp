@@ -21,6 +21,7 @@ struct ThreadParams {
     GameObject box;
     GameObject bullet;
     int FRM1;
+    int score;
     bool* gameRunning;
     bool& isGameRunning() {
         return *gameRunning;
@@ -40,7 +41,7 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
-        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); // Patlama alanını temizle
+        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
         return;
     }
 
@@ -67,9 +68,6 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         obj->y -= 8;
         break;
     }
-
-
-
     obj->explosionFrame++;
 }
 
@@ -98,9 +96,31 @@ void DrawThread(ThreadParams* params) {
             FillRect(screenMatrix, params->bullet.x, params->bullet.y,
                 params->bullet.width, params->bullet.height, 0x0000FF);
         }
-
+        ICG_SetFont(50, 0, "Arial");
+        char score[9] = "Score:  ";
+        score[6] = '0' + params->score;
+        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
+    }
+        Sleep(50);
+        ICG_SetFont(50, 0, "Arial");
+    if (params->score > 9) {
+        screenMatrix = 0x005500;
+        Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+
+    }
+    else {
+        //delete objects
+        params->box.isAlive = false;
+        params->ship.isAlive = false;
+        params->bullet.isAlive = false;
+
+        // GAME OVER Screen
+        screenMatrix = 0x000055;
+        Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
     }
 }
 
@@ -108,10 +128,17 @@ void DrawThread(ThreadParams* params) {
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Move Ship
-        if (keypressed == 37) params->ship.x = max(0, params->ship.x - 10);
-        if (keypressed == 39) params->ship.x = min(460, params->ship.x + 10);
-        keypressed = 0;
-        Sleep(30);
+        if (keypressed == 37)
+        {
+            params->ship.x = max(0, params->ship.x - 8);
+            keypressed = 0;
+        }
+        if (keypressed == 39)
+        {
+            params->ship.x = min(460, params->ship.x + 8);
+            keypressed = 0;
+        }
+        Sleep(1);
     }
 }
 
@@ -134,19 +161,8 @@ void BoxThread(ThreadParams* params) {
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
 
-                //delete objects
-                params->box.isAlive = false;
-                params->ship.isAlive = false;
-                params->bullet.isAlive = false;
-
-                // GameOver flag
                 *(params->gameRunning) = false;
-                Sleep(50);
-                // GAME OVER Screen
-                screenMatrix = 0x000055;
-                ICG_SetFont(50, 0, "Arial");
-                Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-                DisplayImage(params->FRM1, screenMatrix);
+              
 
 
 
@@ -190,9 +206,13 @@ void BulletThread(ThreadParams* params) {
                 if (hitX <= leftPart) //3*x*k
 
                     params->box.explosionType = 1;
-                else if (hitX <= middlePart) //4*x*k
+                else if (hitX <= middlePart) { //4*x*k
                     params->box.explosionType = 2;
-
+                    params->score++;
+                    if (params->score > 9) {
+                        *(params->gameRunning) = false;
+                    }
+                }
                 /*
                 3. If a bullet hits the right side of the box, within the rightmost 3-unit region, the box
                 will instead move to the top-left corner.
@@ -225,12 +245,14 @@ void StartGame(void* gameRunning) {
     int shipX = 250, shipY = 485;
     int boxSize = 40;
     int bulletWidth = 2, bulletHeight = 10;
+    int score = 0;
 
     ThreadParams* params = new ThreadParams{
         {shipX, shipY, 40, 10, true, 0, 0},
         {rand() % (gameScreenX - boxSize) , 0, boxSize, boxSize, true, 0, 0},
         {0, 0, bulletWidth, bulletHeight, false, 0, 0},
         ICG_FrameMedium(5, 40, 1, 1),
+        score,
         gameRunningPtr
     };
 
