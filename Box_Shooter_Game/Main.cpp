@@ -41,7 +41,7 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
-        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); // Patlama alanını temizle
+        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
         return;
     }
 
@@ -103,18 +103,25 @@ void DrawThread(ThreadParams* params) {
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
     }
-    //delete objects
-    params->box.isAlive = false;
-    params->ship.isAlive = false;
-    params->bullet.isAlive = false;
+        Sleep(50);
+        ICG_SetFont(50, 0, "Arial");
+    if (params->score > 9) {
+        screenMatrix = 0x005500;
+        Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
 
-    // GameOver flag
-    Sleep(50);
-    // GAME OVER Screen
-    screenMatrix = 0x000055;
-    ICG_SetFont(50, 0, "Arial");
-    Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-    DisplayImage(params->FRM1, screenMatrix);
+    }
+    else {
+        //delete objects
+        params->box.isAlive = false;
+        params->ship.isAlive = false;
+        params->bullet.isAlive = false;
+
+        // GAME OVER Screen
+        screenMatrix = 0x000055;
+        Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+    }
 }
 
 
@@ -202,6 +209,9 @@ void BulletThread(ThreadParams* params) {
                 else if (hitX <= middlePart) { //4*x*k
                     params->box.explosionType = 2;
                     params->score++;
+                    if (params->score > 9) {
+                        *(params->gameRunning) = false;
+                    }
                 }
                 /*
                 3. If a bullet hits the right side of the box, within the rightmost 3-unit region, the box
