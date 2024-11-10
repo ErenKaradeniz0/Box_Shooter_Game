@@ -20,7 +20,7 @@ struct Heart {
     int count;
     int x, y;
     int size;
-    int* arr = new int[count];
+    //int* arr = new int[count];
 };
 
 struct ThreadParams {
@@ -112,7 +112,7 @@ void DrawThread(ThreadParams* params) {
         int h_y = params->life.y;
         int h_size = params->life.size;
 
-        params->life.arr[0] = h_x;
+        //params->life.arr[0] = h_x;
 
         for (int i = 1; i <= params->life.count; i++) {
             FillRect(screenMatrix, h_x, h_y + h_size, h_size, h_size * 3, 0XFF0000);
@@ -125,7 +125,7 @@ void DrawThread(ThreadParams* params) {
             FillRect(screenMatrix, h_x + h_size * 7, h_y, h_size, h_size * 5, 0XFF0000);
             FillRect(screenMatrix, h_x + h_size * 8, h_y + h_size, h_size, h_size * 3, 0XFF0000);
             h_x += h_size * 9 + 5;
-            params->life.arr[i] = h_x;
+            //params->life.arr[i] = h_x;
         }
 
 
@@ -168,16 +168,19 @@ void BoxThread(ThreadParams* params) {
                 params->box.isAlive = false;
                 params->ship.isAlive = false;
                 params->bullet.isAlive = false;
+                
+                params->life.count--;
 
                 // GameOver flag
-                *(params->gameRunning) = false;
-                Sleep(50);
-                // GAME OVER Screen
-                screenMatrix = 0x000055;
-                ICG_SetFont(50, 0, "Arial");
-                Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-                DisplayImage(params->FRM1, screenMatrix);
-
+                if (params->life.count == 0) {
+                    *(params->gameRunning) = false;
+                    Sleep(50);
+                    // GAME OVER Screen
+                    screenMatrix = 0x000055;
+                    ICG_SetFont(50, 0, "Arial");
+                    Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+                    DisplayImage(params->FRM1, screenMatrix);
+                }
 
 
             }
