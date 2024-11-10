@@ -16,10 +16,18 @@ struct GameObject {
     int explosionFrame;
 };
 
+struct Heart {
+    int count;
+    int x, y;
+    int size;
+    //int* arr = new int[count];
+};
+
 struct ThreadParams {
     GameObject ship;
     GameObject box;
     GameObject bullet;
+    Heart life;
     int FRM1;
     int score;
     bool* gameRunning;
@@ -205,10 +213,32 @@ void DrawThread(ThreadParams* params) {
             FillRect(screenMatrix, params->bullet.x, params->bullet.y,
                 params->bullet.width, params->bullet.height, 0x0000FF);
         }
+        int h_x = params->life.x;
+        int h_y = params->life.y;
+        int h_size = params->life.size;
+
+        //params->life.arr[0] = h_x;
+
+        for (int i = 1; i <= params->life.count; i++) {
+            FillRect(screenMatrix, h_x, h_y + h_size, h_size, h_size * 3, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size, h_y, h_size, h_size * 5, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 2, h_y, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 3, h_y + h_size, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 4, h_y + h_size * 2, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 5, h_y + h_size, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 6, h_y, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 7, h_y, h_size, h_size * 5, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 8, h_y + h_size, h_size, h_size * 3, 0XFF0000);
+            h_x += h_size * 9 + 5;
+            //params->life.arr[i] = h_x;
+        }
+
+
         ICG_SetFont(50, 0, "Arial");
         char score[9] = "Score:  ";
         score[6] = '0' + params->score;
         Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
+
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
     }
@@ -269,11 +299,9 @@ void BoxThread(ThreadParams* params) {
                 (params->box.y + params->box.height >= params->ship.y &&
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
-                *(params->gameRunning) = false;
-              
-
-
-
+                    params->life.count--;
+                    if(params->life.count == 0)
+                      *(params->gameRunning) = false;
             }
         }
         Sleep(30);
@@ -354,16 +382,20 @@ void StartGame(void* gameRunning) {
     int shipX = 250, shipY = 485;
     int boxSize = 40;
     int bulletWidth = 2, bulletHeight = 10;
+    int life = 3;
     int score = 0;
+
 
     ThreadParams* params = new ThreadParams{
         {shipX, shipY, 40, 10, true, 0, 0},
         {rand() % (gameScreenX - boxSize) , 0, boxSize, boxSize, true, 0, 0},
         {0, 0, bulletWidth, bulletHeight, false, 0, 0},
+        {life,10,10,3},
         ICG_FrameMedium(5, 40, 1, 1),
         score,
         gameRunningPtr
     };
+
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
