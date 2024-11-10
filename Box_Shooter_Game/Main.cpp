@@ -187,83 +187,6 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
     }
     obj->explosionFrame++;
 }
-// Drawing Thread
-void DrawThread(ThreadParams* params) {
-    //Intro animation
-    //DrawStartupAndTransition(params);
-    while (params->isGameRunning()) {
-        // Clear screen
-        screenMatrix = 0;
-
-        // Draw ship
-        FillRect(screenMatrix, params->ship.x, params->ship.y,
-            params->ship.width, params->ship.height, 0xFF0000);
-
-        // Draw box or explosion
-        if (params->box.isAlive) {
-            FillRect(screenMatrix, params->box.x, params->box.y,
-                params->box.width, params->box.height, 0x00FF00);
-        }
-        else if (params->box.explosionType > 0) {
-            DrawExplosion(&params->box, params);
-        }
-
-        // Draw bullet
-        if (params->bullet.isAlive) {
-            FillRect(screenMatrix, params->bullet.x, params->bullet.y,
-                params->bullet.width, params->bullet.height, 0x0000FF);
-        }
-        int h_x = params->life.x;
-        int h_y = params->life.y;
-        int h_size = params->life.size;
-
-        //params->life.arr[0] = h_x;
-
-        for (int i = 1; i <= params->life.count; i++) {
-            FillRect(screenMatrix, h_x, h_y + h_size, h_size, h_size * 3, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size, h_y, h_size, h_size * 5, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 2, h_y, h_size, h_size * 6, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 3, h_y + h_size, h_size, h_size * 6, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 4, h_y + h_size * 2, h_size, h_size * 6, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 5, h_y + h_size, h_size, h_size * 6, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 6, h_y, h_size, h_size * 6, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 7, h_y, h_size, h_size * 5, 0XFF0000);
-            FillRect(screenMatrix, h_x + h_size * 8, h_y + h_size, h_size, h_size * 3, 0XFF0000);
-            h_x += h_size * 9 + 5;
-            //params->life.arr[i] = h_x;
-        }
-
-
-        ICG_SetFont(50, 0, "Arial");
-        char score[9] = "Score:  ";
-        score[6] = '0' + params->score;
-        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
-
-        DisplayImage(params->FRM1, screenMatrix);
-        Sleep(30);
-    }
-        Sleep(50);
-        ICG_SetFont(50, 0, "Arial");
-    if (params->score > 9) {
-        screenMatrix = 0x005500;
-        Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
-        DisplayImage(params->FRM1, screenMatrix);
-
-    }
-    else {
-        //delete objects
-        params->box.isAlive = false;
-        params->ship.isAlive = false;
-        params->bullet.isAlive = false;
-
-        // GAME OVER Screen
-        screenMatrix = 0x000055;
-        Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-        DisplayImage(params->FRM1, screenMatrix);
-    }
-}
-
-
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Move Ship
@@ -301,10 +224,9 @@ void BoxThread(ThreadParams* params) {
                     params->box.x <= params->ship.x + params->ship.width)) {
                     params->life.count--;
                     params->box.isAlive = false;
-                    if (params->life.count == 0) {
-                        *(params->gameRunning) = false;
-                    }
-                      
+                    if(params->life.count == 0)
+                      *(params->gameRunning) = false;
+
             }
         }
         Sleep(30);
@@ -371,6 +293,85 @@ void BulletThread(ThreadParams* params) {
     }
 }
 
+// Drawing Thread
+void DrawThread(ThreadParams* params) {
+    //Intro animation
+    DrawStartupAndTransition(params);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+    while (params->isGameRunning()) {
+        // Clear screen
+        screenMatrix = 0;
+
+        // Draw ship
+        FillRect(screenMatrix, params->ship.x, params->ship.y,
+            params->ship.width, params->ship.height, 0xFF0000);
+
+        // Draw box or explosion
+        if (params->box.isAlive) {
+            FillRect(screenMatrix, params->box.x, params->box.y,
+                params->box.width, params->box.height, 0x00FF00);
+        }
+        else if (params->box.explosionType > 0) {
+            DrawExplosion(&params->box, params);
+        }
+
+        // Draw bullet
+        if (params->bullet.isAlive) {
+            FillRect(screenMatrix, params->bullet.x, params->bullet.y,
+                params->bullet.width, params->bullet.height, 0x0000FF);
+        }
+        int h_x = params->life.x;
+        int h_y = params->life.y;
+        int h_size = params->life.size;
+
+        //params->life.arr[0] = h_x;
+
+        for (int i = 1; i <= params->life.count; i++) {
+            FillRect(screenMatrix, h_x, h_y + h_size, h_size, h_size * 3, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size, h_y, h_size, h_size * 5, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 2, h_y, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 3, h_y + h_size, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 4, h_y + h_size * 2, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 5, h_y + h_size, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 6, h_y, h_size, h_size * 6, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 7, h_y, h_size, h_size * 5, 0XFF0000);
+            FillRect(screenMatrix, h_x + h_size * 8, h_y + h_size, h_size, h_size * 3, 0XFF0000);
+            h_x += h_size * 9 + 5;
+            //params->life.arr[i] = h_x;
+        }
+
+
+        ICG_SetFont(50, 0, "Arial");
+        char score[9] = "Score:  ";
+        score[6] = '0' + params->score;
+        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
+
+        DisplayImage(params->FRM1, screenMatrix);
+        Sleep(30);
+    }
+    Sleep(50);
+    ICG_SetFont(50, 0, "Arial");
+    if (params->score > 9) {
+        screenMatrix = 0x005500;
+        Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+
+    }
+    else {
+        //delete objects
+        params->box.isAlive = false;
+        params->ship.isAlive = false;
+        params->bullet.isAlive = false;
+
+        // GAME OVER Screen
+        screenMatrix = 0x000055;
+        Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+    }
+}
+
 void StartGame(void* gameRunning) {
     bool* gameRunningPtr = (bool*)gameRunning;
     if (*gameRunningPtr) return;
@@ -400,9 +401,7 @@ void StartGame(void* gameRunning) {
     };
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+
 
     SetFocus(ICG_GetMainWindow());
 }
