@@ -29,6 +29,7 @@ struct ThreadParams {
     GameObject bullet;
     Heart life;
     int FRM1;
+    int score;
     bool* gameRunning;
     bool& isGameRunning() {
         return *gameRunning;
@@ -41,6 +42,117 @@ void ICGUI_Create() {
     ICG_MWSize(540, 600);
 }
 
+void DrawStartupAndTransition(ThreadParams* params) {
+    ICBYTES startScreen;
+    CreateImage(startScreen, 500, 500, ICB_UINT);
+
+    // Startup Animation
+    for (int frame = 0; frame < 120 && params->isGameRunning();frame++) {
+        startScreen = 0x000000; // Clear screen with black
+
+        // ESD Studios Logo Animation - Matrix effect
+        if (frame < 40) {
+            ICG_SetFont(35 + frame / 4, 0, "Arial");
+            // Create matrix-like random characters behind logo
+            for (int i = 0; i < 10; i++) {
+                int x = rand() % 450;
+                int y = rand() % 450;
+                int green = rand() % 155 + 100;
+                Impress12x20(startScreen, x, y, ".", green << 8);
+            }
+
+            int alpha = (frame * 6) > 255 ? 255 : (frame * 6);
+            int color = alpha | (alpha << 8) | (alpha << 16);
+
+            // Draw ESD with glowing effect
+            if (frame > 20) {
+                ICG_SetFont(45, 0, "Arial Bold");
+                Impress12x20(startScreen, 178, 178, "ESD", 0x00FF00);
+                Impress12x20(startScreen, 180, 180, "ESD", color);
+            }
+            // Draw Studios with delay
+            if (frame > 30) {
+                ICG_SetFont(45, 0, "Arial");
+                Impress12x20(startScreen, 278, 180, "Studios", color);
+            }
+        }
+        else {
+            ICG_SetFont(45, 0, "Arial Bold");
+            Impress12x20(startScreen, 178, 178, "ESD", 0x00FF00);
+            Impress12x20(startScreen, 180, 180, "ESD", 0xFFFFFF);
+            ICG_SetFont(45, 0, "Arial");
+            Impress12x20(startScreen, 278, 180, "Studios", 0xFFFFFF);
+        }
+
+        // Game Title Animation
+        if (frame >= 40) {
+            int titleFrame = frame - 40;
+
+            // Draw shooting lines
+            if (titleFrame < 20) {
+                for (int i = 0; i < titleFrame; i++) {
+                    int y = 250 - i * 10;
+                    FillRect(startScreen, 160 + i * 15, y, 2, 20, 0xFF0000);
+                }
+            }
+
+            // Draw Box Shooter text with glowing effect
+            if (titleFrame >= 20) {
+                ICG_SetFont(40, 0, "Arial Bold");
+                int yOffset = (titleFrame % 16 > 8) ? 2 : -2; // Subtle floating effect
+
+                // Shadow/Glow effect
+                Impress12x20(startScreen, 158, 248, "BOX", 0x800000);
+                Impress12x20(startScreen, 158, 248 + yOffset, "BOX", 0xFF0000);
+
+                Impress12x20(startScreen, 278, 248, "SHOOTER", 0x800000);
+                Impress12x20(startScreen, 278, 248 + yOffset, "SHOOTER", 0xFF0000);
+            }
+        }
+
+        if (!params->isGameRunning()) return;
+        DisplayImage(params->FRM1, startScreen);
+        Sleep(33);
+    }
+
+    // Transition Animation
+    for (int frame = 0; frame < 30 && params->isGameRunning();frame++) {
+        startScreen = 0x000000;
+
+        // Create multiple rectangular wipes
+        for (int i = 0; i < 5; i++) {
+            int offset = i * 100;
+            int width = frame * 20;
+
+            // Top to bottom wipe
+            FillRect(startScreen, offset, 0, 100, width, 0xFF0000);
+            // Bottom to top wipe
+            FillRect(startScreen, offset, 500 - width, 100, width, 0x0000FF);
+        }
+
+        // Add some particle effects
+        for (int i = 0; i < 20; i++) {
+            int x = rand() % 500;
+            int y = rand() % 500;
+            int size = rand() % 4 + 1;
+            int color = rand() % 2 == 0 ? 0xFF0000 : 0x0000FF;
+            FillRect(startScreen, x, y, size, size, color);
+        }
+
+        if (!params->isGameRunning()) return;
+        DisplayImage(params->FRM1, startScreen);
+        Sleep(16);
+    }
+
+    if (!params->isGameRunning()) return;
+
+    // Final flash
+    startScreen = 0xFFFFFF;
+    DisplayImage(params->FRM1, startScreen);
+    Sleep(50);
+    startScreen = 0x000000;
+    DisplayImage(params->FRM1, startScreen);
+}
 
 void DrawExplosion(GameObject* obj, ThreadParams* params) {
     //Draw Explosion
@@ -48,11 +160,9 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
-        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); // Patlama alanını temizle
+        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
         return;
     }
-
-    
     int color = 0xFFFF00; // Explosion Color Yellow
     FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, color);
 
@@ -75,15 +185,12 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         obj->y -= 8;
         break;
     }
-
-
-
     obj->explosionFrame++;
 }
-
- 
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
+    //Intro animation
+    DrawStartupAndTransition(params);
     while (params->isGameRunning()) {
         // Clear screen
         screenMatrix = 0;
@@ -106,8 +213,6 @@ void DrawThread(ThreadParams* params) {
             FillRect(screenMatrix, params->bullet.x, params->bullet.y,
                 params->bullet.width, params->bullet.height, 0x0000FF);
         }
-
-        
         int h_x = params->life.x;
         int h_y = params->life.y;
         int h_size = params->life.size;
@@ -129,8 +234,32 @@ void DrawThread(ThreadParams* params) {
         }
 
 
+        ICG_SetFont(50, 0, "Arial");
+        char score[9] = "Score:  ";
+        score[6] = '0' + params->score;
+        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
+
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
+    }
+        Sleep(50);
+        ICG_SetFont(50, 0, "Arial");
+    if (params->score > 9) {
+        screenMatrix = 0x005500;
+        Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
+
+    }
+    else {
+        //delete objects
+        params->box.isAlive = false;
+        params->ship.isAlive = false;
+        params->bullet.isAlive = false;
+
+        // GAME OVER Screen
+        screenMatrix = 0x000055;
+        Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+        DisplayImage(params->FRM1, screenMatrix);
     }
 }
 
@@ -138,10 +267,17 @@ void DrawThread(ThreadParams* params) {
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Move Ship
-        if (keypressed == 37) params->ship.x = max(0, params->ship.x - 10);
-        if (keypressed == 39) params->ship.x = min(460, params->ship.x + 10);
-        keypressed = 0;
-        Sleep(30);
+        if (keypressed == 37)
+        {
+            params->ship.x = max(0, params->ship.x - 8);
+            keypressed = 0;
+        }
+        if (keypressed == 39)
+        {
+            params->ship.x = min(460, params->ship.x + 8);
+            keypressed = 0;
+        }
+        Sleep(1);
     }
 }
 
@@ -163,26 +299,9 @@ void BoxThread(ThreadParams* params) {
                 (params->box.y + params->box.height >= params->ship.y &&
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
-                
-                //delete objects
-                params->box.isAlive = false;
-                params->ship.isAlive = false;
-                params->bullet.isAlive = false;
-                
-                params->life.count--;
-
-                // GameOver flag
-                if (params->life.count == 0) {
-                    *(params->gameRunning) = false;
-                    Sleep(50);
-                    // GAME OVER Screen
-                    screenMatrix = 0x000055;
-                    ICG_SetFont(50, 0, "Arial");
-                    Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-                    DisplayImage(params->FRM1, screenMatrix);
-                }
-
-
+                    params->life.count--;
+                    if(params->life.count == 0)
+                      *(params->gameRunning) = false;
             }
         }
         Sleep(30);
@@ -223,9 +342,13 @@ void BulletThread(ThreadParams* params) {
                 if (hitX <= leftPart) //3*x*k
 
                     params->box.explosionType = 1;
-                else if (hitX <= middlePart) //4*x*k
+                else if (hitX <= middlePart) { //4*x*k
                     params->box.explosionType = 2;
-
+                    params->score++;
+                    if (params->score > 9) {
+                        *(params->gameRunning) = false;
+                    }
+                }
                 /*
                 3. If a bullet hits the right side of the box, within the rightmost 3-unit region, the box
                 will instead move to the top-left corner.
@@ -250,6 +373,7 @@ void StartGame(void* gameRunning) {
     if (*gameRunningPtr) return;
 
     *gameRunningPtr = true;
+  
     // Reset the screen
     screenMatrix = 0;
 
@@ -259,7 +383,8 @@ void StartGame(void* gameRunning) {
     int boxSize = 40;
     int bulletWidth = 2, bulletHeight = 10;
     int life = 3;
-    
+    int score = 0;
+
 
     ThreadParams* params = new ThreadParams{
         {shipX, shipY, 40, 10, true, 0, 0},
@@ -267,9 +392,9 @@ void StartGame(void* gameRunning) {
         {0, 0, bulletWidth, bulletHeight, false, 0, 0},
         {life,10,10,3},
         ICG_FrameMedium(5, 40, 1, 1),
+        score,
         gameRunningPtr
     };
-    
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
