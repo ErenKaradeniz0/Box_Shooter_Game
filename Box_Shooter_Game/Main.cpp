@@ -190,7 +190,7 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
     //Intro animation
-    DrawStartupAndTransition(params);
+    //DrawStartupAndTransition(params);
     while (params->isGameRunning()) {
         // Clear screen
         screenMatrix = 0;
@@ -300,8 +300,11 @@ void BoxThread(ThreadParams* params) {
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
                     params->life.count--;
-                    if(params->life.count == 0)
-                      *(params->gameRunning) = false;
+                    params->box.isAlive = false;
+                    if (params->life.count == 0) {
+                        *(params->gameRunning) = false;
+                    }
+                      
             }
         }
         Sleep(30);
