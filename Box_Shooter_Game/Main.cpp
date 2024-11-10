@@ -33,6 +33,118 @@ void ICGUI_Create() {
     ICG_MWSize(540, 600);
 }
 
+void DrawStartupAndTransition(ThreadParams* params) {
+    ICBYTES startScreen;
+    CreateImage(startScreen, 500, 500, ICB_UINT);
+
+    // Startup Animation
+    for (int frame = 0; frame < 120 && params->isGameRunning();frame++) {
+        startScreen = 0x000000; // Clear screen with black
+
+        // ESD Studios Logo Animation - Matrix effect
+        if (frame < 40) {
+            ICG_SetFont(35 + frame / 4, 0, "Arial");
+            // Create matrix-like random characters behind logo
+            for (int i = 0; i < 10; i++) {
+                int x = rand() % 450;
+                int y = rand() % 450;
+                int green = rand() % 155 + 100;
+                Impress12x20(startScreen, x, y, ".", green << 8);
+            }
+
+            int alpha = (frame * 6) > 255 ? 255 : (frame * 6);
+            int color = alpha | (alpha << 8) | (alpha << 16);
+
+            // Draw ESD with glowing effect
+            if (frame > 20) {
+                ICG_SetFont(45, 0, "Arial Bold");
+                Impress12x20(startScreen, 178, 178, "ESD", 0x00FF00);
+                Impress12x20(startScreen, 180, 180, "ESD", color);
+            }
+            // Draw Studios with delay
+            if (frame > 30) {
+                ICG_SetFont(45, 0, "Arial");
+                Impress12x20(startScreen, 278, 180, "Studios", color);
+            }
+        }
+        else {
+            ICG_SetFont(45, 0, "Arial Bold");
+            Impress12x20(startScreen, 178, 178, "ESD", 0x00FF00);
+            Impress12x20(startScreen, 180, 180, "ESD", 0xFFFFFF);
+            ICG_SetFont(45, 0, "Arial");
+            Impress12x20(startScreen, 278, 180, "Studios", 0xFFFFFF);
+        }
+
+        // Game Title Animation
+        if (frame >= 40) {
+            int titleFrame = frame - 40;
+
+            // Draw shooting lines
+            if (titleFrame < 20) {
+                for (int i = 0; i < titleFrame; i++) {
+                    int y = 250 - i * 10;
+                    FillRect(startScreen, 160 + i * 15, y, 2, 20, 0xFF0000);
+                }
+            }
+
+            // Draw Box Shooter text with glowing effect
+            if (titleFrame >= 20) {
+                ICG_SetFont(40, 0, "Arial Bold");
+                int yOffset = (titleFrame % 16 > 8) ? 2 : -2; // Subtle floating effect
+
+                // Shadow/Glow effect
+                Impress12x20(startScreen, 158, 248, "BOX", 0x800000);
+                Impress12x20(startScreen, 158, 248 + yOffset, "BOX", 0xFF0000);
+
+                Impress12x20(startScreen, 278, 248, "SHOOTER", 0x800000);
+                Impress12x20(startScreen, 278, 248 + yOffset, "SHOOTER", 0xFF0000);
+            }
+        }
+
+        if (!params->isGameRunning()) return;
+        DisplayImage(params->FRM1, startScreen);
+        Sleep(33);
+    }
+
+    // Transition Animation
+    for (int frame = 0; frame < 30 && params->isGameRunning();frame++) {
+        startScreen = 0x000000;
+
+        // Create multiple rectangular wipes
+        for (int i = 0; i < 5; i++) {
+            int offset = i * 100;
+            int width = frame * 20;
+
+            // Top to bottom wipe
+            FillRect(startScreen, offset, 0, 100, width, 0xFF0000);
+            // Bottom to top wipe
+            FillRect(startScreen, offset, 500 - width, 100, width, 0x0000FF);
+        }
+
+        // Add some particle effects
+        for (int i = 0; i < 20; i++) {
+            int x = rand() % 500;
+            int y = rand() % 500;
+            int size = rand() % 4 + 1;
+            int color = rand() % 2 == 0 ? 0xFF0000 : 0x0000FF;
+            FillRect(startScreen, x, y, size, size, color);
+        }
+
+        if (!params->isGameRunning()) return;
+        DisplayImage(params->FRM1, startScreen);
+        Sleep(16);
+    }
+
+    if (!params->isGameRunning()) return;
+
+    // Final flash
+    startScreen = 0xFFFFFF;
+    DisplayImage(params->FRM1, startScreen);
+    Sleep(50);
+    startScreen = 0x000000;
+    DisplayImage(params->FRM1, startScreen);
+}
+
 
 void DrawExplosion(GameObject* obj, ThreadParams* params) {
     //Draw Explosion
@@ -217,27 +329,30 @@ void StartGame(void* gameRunning) {
     if (*gameRunningPtr) return;
 
     *gameRunningPtr = true;
-    // Reset the screen
     screenMatrix = 0;
 
-    // Define ThreadParams
-    int gameScreenX = 500, GameScreenY = 500;
-    int shipX = 250, shipY = 485;
-    int boxSize = 40;
-    int bulletWidth = 2, bulletHeight = 10;
-
     ThreadParams* params = new ThreadParams{
-        {shipX, shipY, 40, 10, true, 0, 0},
-        {rand() % (gameScreenX - boxSize) , 0, boxSize, boxSize, true, 0, 0},
-        {0, 0, bulletWidth, bulletHeight, false, 0, 0},
-        ICG_FrameMedium(5, 40, 1, 1),
+        {250, 485, 40, 10, true, 0, 0},
+        {rand() % 460, 0, 40, 40, true, 0, 0},
+        {0, 0, 2, 10, false, 0, 0},
+        ICG_FrameMedium(5, 40, 500, 500),
         gameRunningPtr
     };
 
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+    // Startup animasyonunu thread olarak baþlat
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)[](LPVOID p) -> DWORD {
+        ThreadParams* params = (ThreadParams*)p;
+        DrawStartupAndTransition(params);
+
+        // Eðer hala çalýþýyorsa oyun threadlerini baþlat
+        if (params->isGameRunning()) {
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
+            CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+        }
+        return 0;
+        }, params, 0, NULL);
 
     SetFocus(ICG_GetMainWindow());
 }
@@ -253,4 +368,4 @@ void ICGUI_main() {
     static bool gameRunning = false;
     ICG_Button(5, 5, 120, 25, "START GAME", StartGame, &gameRunning);
     ICG_SetOnKeyPressed(WhenKeyPressed);
-},
+}
