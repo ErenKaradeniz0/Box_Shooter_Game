@@ -187,7 +187,6 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
     }
     obj->explosionFrame++;
 }
-
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Move Ship
@@ -227,6 +226,7 @@ void BoxThread(ThreadParams* params) {
                     params->box.isAlive = false;
                     if(params->life.count == 0)
                       *(params->gameRunning) = false;
+
             }
         }
         Sleep(30);
