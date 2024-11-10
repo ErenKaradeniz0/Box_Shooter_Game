@@ -362,7 +362,7 @@ void StartGame(void* gameRunning) {
         score,
         gameRunningPtr
     };
-
+    DrawStartupAndTransition(params);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
