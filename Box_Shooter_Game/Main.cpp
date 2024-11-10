@@ -375,6 +375,7 @@ void DrawThread(ThreadParams* params) {
 }
 
 void StartGame(void* gameRunning) {
+    SetFocus(ICG_GetMainWindow());
     bool* gameRunningPtr = (bool*)gameRunning;
     if (*gameRunningPtr) return;
 
@@ -403,9 +404,6 @@ void StartGame(void* gameRunning) {
     };
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
-
-
-    SetFocus(ICG_GetMainWindow());
 }
 
 void WhenKeyPressed(int k) {
@@ -418,6 +416,5 @@ void ICGUI_main() {
 
     static bool gameRunning = false;
     ICG_Button(5, 5, 120, 25, "START GAME", StartGame, &gameRunning);
-    int a = ICG_Static(135, 5, 100, 20, "Score: 5");
     ICG_SetOnKeyPressed(WhenKeyPressed);
 }
