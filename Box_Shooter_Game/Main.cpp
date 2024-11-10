@@ -224,6 +224,7 @@ void BoxThread(ThreadParams* params) {
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
                     params->life.count--;
+                    params->box.isAlive = false;
                     if(params->life.count == 0)
                       *(params->gameRunning) = false;
             }
