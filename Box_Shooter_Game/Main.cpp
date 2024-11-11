@@ -156,13 +156,16 @@ void DrawStartupAndTransition(ThreadParams* params) {
 
 void DrawExplosion(GameObject* obj, ThreadParams* params) {
     //Draw Explosion
-    if (obj->explosionFrame > 10) {
+
+    if ( (obj->explosionFrame > 10 && obj->explosionType==2) || obj->x <= 0-obj->height  || obj->x >= 600 || obj->y < 40 - obj->height ) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
         FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
         return;
     }
+
     int color = 0xFFFF00; // Explosion Color Yellow
     FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, color);
 
@@ -186,8 +189,11 @@ void DrawExplosion(GameObject* obj, ThreadParams* params) {
         break;
     }
     obj->explosionFrame++;
-}
 
+    FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+
+
+}
 void ShipThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Move Ship
@@ -210,7 +216,7 @@ void BoxThread(ThreadParams* params) {
         if (!params->box.isAlive && params->box.explosionType == 0) {
             // Respawn box
             params->box.x = rand() % 430;
-            params->box.y = 0;
+            params->box.y = 40;
             params->box.isAlive = true;
             params->box.explosionType = 0;
             params->box.explosionFrame = 0;
@@ -224,9 +230,11 @@ void BoxThread(ThreadParams* params) {
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
                     params->life.count--;
+                    PlaySound("sound/crash.wav", NULL, SND_ASYNC);
                     params->box.isAlive = false;
                     if(params->life.count == 0)
                       *(params->gameRunning) = false;
+
             }
         }
         Sleep(30);
@@ -237,6 +245,7 @@ void BulletThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Create Bullet
         if (keypressed == 32 && !params->bullet.isAlive) {
+            PlaySound("sound/shoot.wav", NULL, SND_ASYNC);
             params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
             params->bullet.y = params->ship.y - params->bullet.height;
             params->bullet.isAlive = true;
@@ -264,10 +273,12 @@ void BulletThread(ThreadParams* params) {
                 destroyed.
                 */
                 int middlePart = params->box.width - leftPart;
-                if (hitX <= leftPart) //3*x*k
-
+                if (hitX <= leftPart) { //3*x*k
+                    PlaySound("sound/miss.wav", NULL, SND_ASYNC);
                     params->box.explosionType = 1;
+                }
                 else if (hitX <= middlePart) { //4*x*k
+                    PlaySound("sound/explosion.wav", NULL, SND_ASYNC);
                     params->box.explosionType = 2;
                     params->score++;
                     if (params->score > 9) {
@@ -278,24 +289,31 @@ void BulletThread(ThreadParams* params) {
                 3. If a bullet hits the right side of the box, within the rightmost 3-unit region, the box
                 will instead move to the top-left corner.
                 */
-                else  //3*x*k
+                else {  //3*x*k
+                    PlaySound("sound/miss.wav", NULL, SND_ASYNC);
                     params->box.explosionType = 3;
-
+                }
                 params->box.isAlive = false;
                 params->bullet.isAlive = false;
             }
             // Screen overflow check
-            if (params->bullet.y < 0) {
+            if (params->bullet.y < 40) {
                 params->bullet.isAlive = false;
             }
         }
         Sleep(30);
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
     }
 }
 
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
+
+    ICG_SetFont(50, 0, "Arial");
+    char score[9] = "Score:  ";
+
     //Intro animation
+    PlaySound("sound/intro.wav", NULL, SND_ASYNC);
     DrawStartupAndTransition(params);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
@@ -304,6 +322,8 @@ void DrawThread(ThreadParams* params) {
         // Clear screen
         screenMatrix = 0;
 
+        //GreyLine
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
         // Draw ship
         FillRect(screenMatrix, params->ship.x, params->ship.y,
             params->ship.width, params->ship.height, 0xFF0000);
@@ -343,16 +363,13 @@ void DrawThread(ThreadParams* params) {
         }
 
 
-        ICG_SetFont(50, 0, "Arial");
-        char score[9] = "Score:  ";
         score[6] = '0' + params->score;
-        Impress12x20(screenMatrix, 75, 100, score, 0xFFFFFF);
+        Impress12x20(screenMatrix, 400, 13, score, 0xFFFFFF);
 
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
     }
     Sleep(50);
-    ICG_SetFont(50, 0, "Arial");
     if (params->score > 9) {
         screenMatrix = 0x005500;
         Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
@@ -360,6 +377,9 @@ void DrawThread(ThreadParams* params) {
 
     }
     else {
+        
+        PlaySound("sound/death.wav", NULL, SND_ASYNC);
+
         //delete objects
         params->box.isAlive = false;
         params->ship.isAlive = false;
@@ -368,11 +388,13 @@ void DrawThread(ThreadParams* params) {
         // GAME OVER Screen
         screenMatrix = 0x000055;
         Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
+        Impress12x20(screenMatrix, 220, 275, score, 0xFFFFFF);
         DisplayImage(params->FRM1, screenMatrix);
     }
 }
 
 void StartGame(void* gameRunning) {
+    SetFocus(ICG_GetMainWindow());
     bool* gameRunningPtr = (bool*)gameRunning;
     if (*gameRunningPtr) return;
 
@@ -384,26 +406,23 @@ void StartGame(void* gameRunning) {
     // Define ThreadParams
     int gameScreenX = 500, GameScreenY = 500;
     int shipX = 250, shipY = 485;
-    int boxSize = 40;
+    int boxSize = 40,boxY = 40;
     int bulletWidth = 2, bulletHeight = 10;
     int life = 3;
     int score = 0;
 
 
     ThreadParams* params = new ThreadParams{
-        {shipX, shipY, 40, 10, true, 0, 0},
-        {rand() % (gameScreenX - boxSize) , 0, boxSize, boxSize, true, 0, 0},
-        {0, 0, bulletWidth, bulletHeight, false, 0, 0},
-        {life,10,10,3},
-        ICG_FrameMedium(5, 40, 1, 1),
-        score,
-        gameRunningPtr
+        {shipX, shipY, 40, 10, true, 0, 0},                                         //ship
+        {rand() % (gameScreenX - boxSize) , boxY, boxSize, boxSize, true, 0, 0},    //box
+        {0, 0, bulletWidth, bulletHeight, false, 0, 0},                             //bullet
+        {life,10,10,3},                                                                //heart
+        ICG_FrameMedium(5, 40, 1, 1),                                               //frame
+        score,                                                                      //score
+        gameRunningPtr                                                              //gameRunning
     };
 
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
-
-
-    SetFocus(ICG_GetMainWindow());
 }
 
 void WhenKeyPressed(int k) {
