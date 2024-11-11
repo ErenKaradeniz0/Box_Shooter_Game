@@ -230,6 +230,7 @@ void BoxThread(ThreadParams* params) {
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
                     params->life.count--;
+                    PlaySound("sound/crash.wav", NULL, SND_ASYNC);
                     params->box.isAlive = false;
                     if(params->life.count == 0)
                       *(params->gameRunning) = false;
@@ -376,6 +377,9 @@ void DrawThread(ThreadParams* params) {
 
     }
     else {
+        
+        PlaySound("sound/death.wav", NULL, SND_ASYNC);
+
         //delete objects
         params->box.isAlive = false;
         params->ship.isAlive = false;
