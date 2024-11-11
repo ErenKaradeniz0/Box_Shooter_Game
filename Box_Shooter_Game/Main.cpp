@@ -312,7 +312,8 @@ void DrawThread(ThreadParams* params) {
     char score[9] = "Score:  ";
 
     //Intro animation
-    //DrawStartupAndTransition(params);
+    PlaySound("sound/intro.wav", NULL, SND_ASYNC);
+    DrawStartupAndTransition(params);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
