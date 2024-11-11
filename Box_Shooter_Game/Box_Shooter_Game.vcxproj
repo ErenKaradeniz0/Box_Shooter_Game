@@ -141,6 +141,12 @@
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Media Include="Music\explosion.wav" />
+    <Media Include="Music\miss.wav" />
+    <Media Include="Music\miss2.wav" />
+    <Media Include="Music\shoot.wav" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
