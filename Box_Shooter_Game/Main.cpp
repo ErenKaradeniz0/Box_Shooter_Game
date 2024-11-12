@@ -8,46 +8,21 @@ object and the keypressed variable.
 int keypressed;
 ICBYTES screenMatrix;
 
-struct GameObject {
-    int x, y;
-    int width, height;
-    bool isAlive;
-    int explosionType;
-    int explosionFrame;
-};
-
-struct Heart {
-    int count;
-    int x, y;
-    int size;
-    //int* arr = new int[count];
-};
-
-struct ThreadParams {
-    GameObject ship;
-    GameObject box;
-    GameObject bullet;
-    Heart life;
-    int FRM1;
-    int score;
-    bool* gameRunning;
-    bool& isGameRunning() {
-        return *gameRunning;
-    }
-};
-
 // Create window
 void ICGUI_Create() {
     ICG_MWTitle("Space Shooter");
     ICG_MWSize(540, 600);
 }
 
-void DrawStartupAndTransition(ThreadParams* params) {
+void DrawStartupAndTransition(int* data) {
+    
     ICBYTES startScreen;
     CreateImage(startScreen, 500, 500, ICB_UINT);
+    int* gameRunning = &data[23];
+    int* f1Frame = &data[21];
 
     // Startup Animation
-    for (int frame = 0; frame < 120 && params->isGameRunning();frame++) {
+    for (int frame = 0; frame < 120 && *gameRunning; frame++) {
         startScreen = 0x000000; // Clear screen with black
 
         // ESD Studios Logo Animation - Matrix effect
@@ -110,13 +85,13 @@ void DrawStartupAndTransition(ThreadParams* params) {
             }
         }
 
-        if (!params->isGameRunning()) return;
-        DisplayImage(params->FRM1, startScreen);
+        if (!*gameRunning) return;
+        DisplayImage(*f1Frame, startScreen); // Assuming gameData[0] stores FRM1 reference
         Sleep(33);
     }
 
     // Transition Animation
-    for (int frame = 0; frame < 30 && params->isGameRunning();frame++) {
+    for (int frame = 0; frame < 30 && *gameRunning; frame++) {
         startScreen = 0x000000;
 
         // Create multiple rectangular wipes
@@ -139,150 +114,211 @@ void DrawStartupAndTransition(ThreadParams* params) {
             FillRect(startScreen, x, y, size, size, color);
         }
 
-        if (!params->isGameRunning()) return;
-        DisplayImage(params->FRM1, startScreen);
+        if (!*gameRunning) return;
+        DisplayImage(*f1Frame, startScreen); // Assuming gameData[0] stores FRM1 reference
         Sleep(16);
     }
 
-    if (!params->isGameRunning()) return;
+    if (!*gameRunning) return;
 
     // Final flash
     startScreen = 0xFFFFFF;
-    DisplayImage(params->FRM1, startScreen);
+    DisplayImage(*f1Frame, startScreen); // Assuming gameData[0] stores FRM1 reference
     Sleep(50);
     startScreen = 0x000000;
-    DisplayImage(params->FRM1, startScreen);
+    DisplayImage(*f1Frame, startScreen); // Assuming gameData[0] stores FRM1 reference
 }
 
-void DrawExplosion(GameObject* obj, ThreadParams* params) {
-    //Draw Explosion
+void DrawExplosion(int* data) {
+    int* boxX = &data[5];
+    int* boxY = &data[6];
+    int* boxWidth = &data[7];
+    int* boxHeight = &data[8];
+    int* boxIsAlive = &data[9];
 
-    if ( (obj->explosionFrame > 10 && obj->explosionType==2) || obj->x <= 0-obj->height  || obj->x >= 600 || obj->y < 40 - obj->height ) {
-        obj->isAlive = false;
-        obj->explosionType = 0;
-        obj->explosionFrame = 0;
-        FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, 0x000000); //Clear Explosion
-        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+    int* boxExplosionType = &data[10];
+    int* boxExplosionFrame = &data[11];
+
+
+    if ((*boxExplosionFrame > 10 && *boxExplosionType == 2) ||
+        *boxX <= 0 - *boxHeight || *boxX >= 600 ||
+        *boxY < 40 - *boxHeight) {
+
+        *boxIsAlive = false;
+        *boxExplosionType = 0;
+        *boxExplosionFrame = 0;
+        FillRect(screenMatrix, *boxX, *boxY, *boxWidth, *boxHeight, 0x000000); // Patlama alanını temizle
+        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333); // Ekranın üst kısmını temizle
         return;
     }
 
-    int color = 0xFFFF00; // Explosion Color Yellow
-    FillRect(screenMatrix, obj->x, obj->y, params->box.width, params->box.height, color);
+    int color = 0xFFFF00; // Patlama rengi sarı
+    FillRect(screenMatrix, *boxX, *boxY, *boxWidth, *boxHeight, color);
 
-    // Explosion Middle
-    if (obj->explosionType == 2) {
-        FillRect(screenMatrix, obj->x + ((params->box.width - (obj->explosionFrame * (params->box.width / 10))) / 2), obj->y, obj->explosionFrame * (params->box.width / 10), params->box.height, 0x000000);
-        FillRect(screenMatrix, obj->x, obj->y + ((params->box.height - (obj->explosionFrame * (params->box.width / 10))) / 2), params->box.width, obj->explosionFrame * (params->box.height / 10), 0x000000);
+    // Patlama Merkezi (Explosion Middle) - Siyah bir boşluk oluşturuyor
+    if (*boxExplosionType == 2) {
+        // Patlama genişliği, mevcut kareye göre merkezden itibaren küçülüyor
+        FillRect(screenMatrix, *boxX + ((*boxWidth - (*boxExplosionFrame * (*boxWidth / 10))) / 2),
+            *boxY, *boxExplosionFrame * (*boxWidth / 10), *boxHeight, 0x000000);
+        FillRect(screenMatrix, *boxX, *boxY + ((*boxHeight - (*boxExplosionFrame * (*boxWidth / 10))) / 2),
+            *boxWidth, *boxExplosionFrame * (*boxHeight / 10), 0x000000);
     }
-    // Case 1 Case 3  diagonally move Case 2 explosion 
-    switch (obj->explosionType) {
+
+    // Patlama hareketi - Explosion type'a göre farklı hareket sağlıyor
+    switch (*boxExplosionType) {
     case 1:
-        obj->x += 8;
-        obj->y -= 8;
+        *boxX += 8; // Sağa ve yukarıya hareket
+        *boxY -= 8;
         break;
     case 2:
-        obj->y -= 8;
+        *boxY -= 8; // Yukarıya hareket
         break;
     case 3:
-        obj->x -= 8;
-        obj->y -= 8;
+        *boxX -= 8; // Sola ve yukarıya hareket
+        *boxY -= 8;
         break;
     }
-    obj->explosionFrame++;
+    (*boxExplosionFrame)++; // Patlama karesi arttırılır
 
-    FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
-
-
+    FillRect(screenMatrix, 0, 0, 500, 40, 0x333333); // Üst bölümü temizle
 }
-void ShipThread(ThreadParams* params) {
-    while (params->isGameRunning()) {
+
+void ShipThread(int* data) {
+    int* shipX = &data[0];
+    int* shipY = &data[1];
+    int* gameRunning = &data[23];
+
+
+
+    while (*gameRunning) {
+
         // Move Ship
         if (keypressed == 37)
         {
-            params->ship.x = max(0, params->ship.x - 8);
+            *shipX = max(0, *shipX - 10);
             keypressed = 0;
         }
         if (keypressed == 39)
         {
-            params->ship.x = min(460, params->ship.x + 8);
+            *shipX = min(460, *shipX + 10);
             keypressed = 0;
         }
         Sleep(1);
     }
 }
 
-void BoxThread(ThreadParams* params) {
-    while (params->isGameRunning()) {
-        if (!params->box.isAlive && params->box.explosionType == 0) {
+void BoxThread(int* data) {
+    int* shipX = &data[0];
+    int* shipY = &data[1];
+    int* shipWidth = &data[2];
+
+    int* boxX = &data[5];
+    int* boxY = &data[6];
+    int* boxWidth = &data[7];
+    int* boxHeight = &data[8];
+    int* boxIsAlive = &data[9];
+
+    int* boxExplosionType = &data[10];
+    int* boxExplosionFrame = &data[11];
+
+    int* lifeCount = &data[17];
+
+    int* gameRunning = &data[23];
+
+
+
+    while (*gameRunning) {
+        if (!*boxIsAlive && *boxExplosionType == 0) {
             // Respawn box
-            params->box.x = rand() % 430;
-            params->box.y = 40;
-            params->box.isAlive = true;
-            params->box.explosionType = 0;
-            params->box.explosionFrame = 0;
+            *boxX = rand() % 430;
+            *boxY = 40;
+            *boxIsAlive = true;
+            *boxExplosionType = 0;
+            *boxExplosionFrame = 0;
         }
         // Move box
-        else if (params->box.isAlive) {
-            params->box.y += 4;
+        else if (*boxIsAlive) {
+            *boxY += 4;
             // Collision to ship or cross to border
-            if (params->box.y > params->ship.y ||
-                (params->box.y + params->box.height >= params->ship.y &&
-                    params->box.x + params->box.width >= params->ship.x &&
-                    params->box.x <= params->ship.x + params->ship.width)) {
-                    params->life.count--;
-                    PlaySound("sound/crash.wav", NULL, SND_ASYNC);
-                    params->box.isAlive = false;
-                    if(params->life.count == 0)
-                      *(params->gameRunning) = false;
-
+            if (*boxY > *shipY ||
+                (*boxY + *boxHeight >= *shipY &&
+                    *boxX + *boxWidth >= *shipX &&
+                    *boxX <= *shipX + *shipWidth)) {
+                 (*lifeCount)--;
+                PlaySound("sound/crash.wav", NULL, SND_ASYNC);
+                *boxIsAlive = false;
+                if (*lifeCount == 0)
+                    *gameRunning = 0;
             }
         }
         Sleep(30);
     }
 }
 
-void BulletThread(ThreadParams* params) {
-    while (params->isGameRunning()) {
+void BulletThread(int* data) {
+    int* shipX = &data[0];
+    int* shipY = &data[1];
+    int* shipWidth = &data[2];
+
+    int* boxX = &data[5];
+    int* boxY = &data[6];
+    int* boxWidth = &data[7];
+    int* boxHeight = &data[8];
+    int* boxIsAlive = &data[9];
+
+    int* boxExplosionType = &data[10];
+
+    int* bulletX = &data[12];
+    int* bulletY = &data[13];
+    int* bulletWidth = &data[14];
+    int* bulletHeight = &data[15];
+    int* bulletIsAlive = &data[16];
+
+    int* score = &data[22];
+    int* gameRunning = &data[23];
+
+    while (*gameRunning) {
         // Create Bullet
-        if (keypressed == 32 && !params->bullet.isAlive) {
+        if (keypressed == 32 && !*bulletIsAlive) {
             PlaySound("sound/shoot.wav", NULL, SND_ASYNC);
-            params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
-            params->bullet.y = params->ship.y - params->bullet.height;
-            params->bullet.isAlive = true;
+            *bulletX = *shipX + (*shipWidth / 2) - (*bulletWidth / 2);
+            *bulletY = *shipY - *bulletHeight;
+            *bulletIsAlive = true;
             keypressed = 0;
         }
         // Move Bullet
-        if (params->bullet.isAlive) {
-            params->bullet.y -= 10;
-            if (params->box.isAlive &&
-                params->bullet.y <= params->box.y + params->box.height &&
-                params->bullet.y + params->bullet.height >= params->box.y &&
-                params->bullet.x + params->bullet.width >= params->box.x &&
-                params->bullet.x <= params->box.x + params->box.width) {
+        if (*bulletIsAlive) {
+            *bulletY-= 18;
+            if (*boxIsAlive &&
+                *bulletY <= *boxY + *boxHeight &&
+                *bulletY + *bulletHeight >= *boxY &&
+                *bulletX + *bulletWidth >= *boxX &&
+                *bulletX <= *boxX + *boxWidth) {
 
 
-                int hitX = params->bullet.x - params->box.x;
+                int hitX = *bulletX - *boxX;
                 /*
                 2. When a bullet strikes the left side of a box, specifically within the leftmost 3-unit
                 region, the box will move to the top-right corner.
                 */
-                int leftPart = params->box.width / 3 - 1;
+
+                int leftPart = *boxWidth / 3 - 1;
 
                 /*
                 4. A bullet that hits the central 4-unit region of the box will result in the box being
                 destroyed.
                 */
-                int middlePart = params->box.width - leftPart;
+                int middlePart = *boxWidth - leftPart;
                 if (hitX <= leftPart) { //3*x*k
                     PlaySound("sound/miss.wav", NULL, SND_ASYNC);
-                    params->box.explosionType = 1;
+                    *boxExplosionType = 1;
                 }
                 else if (hitX <= middlePart) { //4*x*k
                     PlaySound("sound/explosion.wav", NULL, SND_ASYNC);
-                    params->box.explosionType = 2;
-                    params->score++;
-                    if (params->score > 9) {
-                        *(params->gameRunning) = false;
+                    *boxExplosionType = 2;
+                    (*score)++;
+                    if (*score > 9) {
+                        *gameRunning = 0;
                     }
                 }
                 /*
@@ -291,14 +327,14 @@ void BulletThread(ThreadParams* params) {
                 */
                 else {  //3*x*k
                     PlaySound("sound/miss.wav", NULL, SND_ASYNC);
-                    params->box.explosionType = 3;
+                    *boxExplosionType = 3;
                 }
-                params->box.isAlive = false;
-                params->bullet.isAlive = false;
+                *boxIsAlive = false;
+                *bulletIsAlive = false;
             }
             // Screen overflow check
-            if (params->bullet.y < 40) {
-                params->bullet.isAlive = false;
+            if (*bulletY < 40) {
+                *bulletIsAlive = false;
             }
         }
         Sleep(30);
@@ -306,49 +342,80 @@ void BulletThread(ThreadParams* params) {
     }
 }
 
-// Drawing Thread
-void DrawThread(ThreadParams* params) {
+void DrawThread(LPVOID lpParam) {
+    int* data = (int*)lpParam;
+
+    int* shipX = &data[0];
+    int* shipY = &data[1];
+    int* shipWidth = &data[2];
+    int* shipHeight = &data[3];
+    int* shipIsAlive = &data[4];
+
+    int* boxX = &data[5];
+    int* boxY = &data[6];
+    int* boxWidth = &data[7];
+    int* boxHeight = &data[8];
+    int* boxIsAlive = &data[9];
+
+    int* boxExplosionType = &data[10];
+
+    int* bulletX = &data[12];
+    int* bulletY = &data[13];
+    int* bulletWidth = &data[14];
+    int* bulletHeight = &data[15];
+    int* bulletIsAlive = &data[16];
+
+    int* lifeCount = &data[17];
+    int* lifeX = &data[18];
+    int* lifeY = &data[19];
+    int* lifeSize = &data[20];
+
+    int* frame = &data[21];
+    int* score = &data[22];
+    int* gameRunning = &data[23];
+
 
     ICG_SetFont(50, 0, "Arial");
-    char score[9] = "Score:  ";
+    char scoreText[9] = "Score:  ";
 
-    //Intro animation
+    // Intro animation
     PlaySound("sound/intro.wav", NULL, SND_ASYNC);
-    DrawStartupAndTransition(params);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
-    while (params->isGameRunning()) {
+    DrawStartupAndTransition(data);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, data, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, data, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, data, 0, NULL);
+
+    while (*gameRunning) {
         // Clear screen
         screenMatrix = 0;
 
-        //GreyLine
+        // GreyLine
         FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+
         // Draw ship
-        FillRect(screenMatrix, params->ship.x, params->ship.y,
-            params->ship.width, params->ship.height, 0xFF0000);
+        if (*shipIsAlive) {
+            FillRect(screenMatrix, *shipX, *shipY, *shipWidth, *shipHeight, 0xFF0000);
+        }
 
         // Draw box or explosion
-        if (params->box.isAlive) {
-            FillRect(screenMatrix, params->box.x, params->box.y,
-                params->box.width, params->box.height, 0x00FF00);
+        if (*boxIsAlive) {
+            FillRect(screenMatrix, *boxX, *boxY, *boxWidth, *boxHeight, 0x00FF00);
         }
-        else if (params->box.explosionType > 0) {
-            DrawExplosion(&params->box, params);
+        else if (*boxExplosionType > 0) {
+            DrawExplosion(data); // box verilerini patlama çizim fonksiyonuna gönder
         }
 
         // Draw bullet
-        if (params->bullet.isAlive) {
-            FillRect(screenMatrix, params->bullet.x, params->bullet.y,
-                params->bullet.width, params->bullet.height, 0x0000FF);
+        if (*bulletIsAlive) {
+            FillRect(screenMatrix, *bulletX, *bulletY, *bulletWidth, *bulletHeight, 0x0000FF);
         }
-        int h_x = params->life.x;
-        int h_y = params->life.y;
-        int h_size = params->life.size;
 
-        //params->life.arr[0] = h_x;
+        // Draw hearts (life count)
+        int h_x = *lifeX;
+        int h_y = *lifeY;
+        int h_size = *lifeSize;
 
-        for (int i = 1; i <= params->life.count; i++) {
+        for (int i = 1; i <= *lifeCount; i++) {
             FillRect(screenMatrix, h_x, h_y + h_size, h_size, h_size * 3, 0XFF0000);
             FillRect(screenMatrix, h_x + h_size, h_y, h_size, h_size * 5, 0XFF0000);
             FillRect(screenMatrix, h_x + h_size * 2, h_y, h_size, h_size * 6, 0XFF0000);
@@ -359,70 +426,64 @@ void DrawThread(ThreadParams* params) {
             FillRect(screenMatrix, h_x + h_size * 7, h_y, h_size, h_size * 5, 0XFF0000);
             FillRect(screenMatrix, h_x + h_size * 8, h_y + h_size, h_size, h_size * 3, 0XFF0000);
             h_x += h_size * 9 + 5;
-            //params->life.arr[i] = h_x;
         }
 
+        // Update score
+        scoreText[6] = '0' + *score;
+        Impress12x20(screenMatrix, 400, 13, scoreText, 0xFFFFFF);
 
-        score[6] = '0' + params->score;
-        Impress12x20(screenMatrix, 400, 13, score, 0xFFFFFF);
-
-        DisplayImage(params->FRM1, screenMatrix);
+        DisplayImage(*frame, screenMatrix);
         Sleep(30);
     }
+
+    // Display game over or win screen
     Sleep(50);
-    if (params->score > 9) {
+    if (*score > 9) {
         screenMatrix = 0x005500;
         Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
-        DisplayImage(params->FRM1, screenMatrix);
-
+        DisplayImage(*frame, screenMatrix);
     }
     else {
-        
         PlaySound("sound/death.wav", NULL, SND_ASYNC);
 
-        //delete objects
-        params->box.isAlive = false;
-        params->ship.isAlive = false;
-        params->bullet.isAlive = false;
+        // delete objects
+        *boxIsAlive = false;
+        *shipIsAlive = false;
+        *bulletIsAlive = false;
 
         // GAME OVER Screen
         screenMatrix = 0x000055;
         Impress12x20(screenMatrix, 200, 250, "GAME OVER", 0xFFFFFF);
-        Impress12x20(screenMatrix, 220, 275, score, 0xFFFFFF);
-        DisplayImage(params->FRM1, screenMatrix);
+        Impress12x20(screenMatrix, 220, 275, scoreText, 0xFFFFFF);
+        DisplayImage(*frame, screenMatrix);
     }
 }
 
 void StartGame(void* gameRunning) {
+    
     SetFocus(ICG_GetMainWindow());
-    bool* gameRunningPtr = (bool*)gameRunning;
-    if (*gameRunningPtr) return;
-
-    *gameRunningPtr = true;
-  
     // Reset the screen
     screenMatrix = 0;
+    
+    int* gameRunningPtr = (int*)gameRunning;
+    if (*gameRunningPtr) return;
+    *gameRunningPtr = 1;
 
-    // Define ThreadParams
-    int gameScreenX = 500, GameScreenY = 500;
-    int shipX = 250, shipY = 485;
-    int boxSize = 40,boxY = 40;
-    int bulletWidth = 2, bulletHeight = 10;
-    int life = 3;
-    int score = 0;
-
-
-    ThreadParams* params = new ThreadParams{
-        {shipX, shipY, 40, 10, true, 0, 0},                                         //ship
-        {rand() % (gameScreenX - boxSize) , boxY, boxSize, boxSize, true, 0, 0},    //box
-        {0, 0, bulletWidth, bulletHeight, false, 0, 0},                             //bullet
-        {life,10,10,3},                                                                //heart
-        ICG_FrameMedium(5, 40, 1, 1),                                               //frame
-        score,                                                                      //score
-        gameRunningPtr                                                              //gameRunning
+    int gameData[24] = {
+        250, 485, 40, 10, 1,                    // Ship verileri (x, y, width, height, isAlive)
+        rand() % 460, 40, 40, 40, 1,            // Box verileri (x, y, width, height, isAlive)
+        0,0,                                    // Box explosion type and frame        
+        0, 0, 2, 10, 0,                         // Bullet verileri (x, y, width, height, isAlive)
+        3, 10, 10, 3,                           // Heart verileri (count, x, y, size)
+        ICG_FrameMedium(5, 40, 1, 1),                                      // Frame değeri
+        0,                                      // Score
+        *gameRunningPtr                         // Game Running
     };
 
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, params, 0, NULL);
+    int* gameDataPtr = (int*)malloc(sizeof(int) * 24);
+    memcpy(gameDataPtr, gameData, sizeof(int) * 24);
+
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DrawThread, (LPVOID)gameDataPtr, 0, NULL);
 }
 
 void WhenKeyPressed(int k) {
@@ -433,7 +494,7 @@ void ICGUI_main() {
     CreateImage(screenMatrix, 500, 500, ICB_UINT);
     screenMatrix = 0;
 
-    static bool gameRunning = false;
+    static int gameRunning = 0;
     ICG_Button(5, 5, 120, 25, "START GAME", StartGame, &gameRunning);
     ICG_SetOnKeyPressed(WhenKeyPressed);
 }
