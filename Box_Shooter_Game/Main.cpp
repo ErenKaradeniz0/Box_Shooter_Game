@@ -8,6 +8,9 @@ object and the keypressed variable.
 int keypressed;
 ICBYTES screenMatrix;
 
+HANDLE HMutex;
+
+
 struct GameObject {
     int x, y;
     int width, height;
@@ -47,7 +50,7 @@ void DrawStartupAndTransition(ThreadParams* params) {
     CreateImage(startScreen, 500, 500, ICB_UINT);
 
     // Startup Animation
-    for (int frame = 0; frame < 120 && params->isGameRunning();frame++) {
+    for (int frame = 0; frame < 120 && params->isGameRunning(); frame++) {
         startScreen = 0x000000; // Clear screen with black
 
         // ESD Studios Logo Animation - Matrix effect
@@ -116,7 +119,7 @@ void DrawStartupAndTransition(ThreadParams* params) {
     }
 
     // Transition Animation
-    for (int frame = 0; frame < 30 && params->isGameRunning();frame++) {
+    for (int frame = 0; frame < 30 && params->isGameRunning(); frame++) {
         startScreen = 0x000000;
 
         // Create multiple rectangular wipes
@@ -157,7 +160,7 @@ void DrawStartupAndTransition(ThreadParams* params) {
 void DrawExplosion(GameObject* obj, ThreadParams* params) {
     //Draw Explosion
 
-    if ( (obj->explosionFrame > 10 && obj->explosionType==2) || obj->x <= 0-obj->height  || obj->x >= 600 || obj->y < 40 - obj->height ) {
+    if ((obj->explosionFrame > 10 && obj->explosionType == 2) || obj->x <= 0 - obj->height || obj->x >= 600 || obj->y < 40 - obj->height) {
         obj->isAlive = false;
         obj->explosionType = 0;
         obj->explosionFrame = 0;
@@ -212,6 +215,7 @@ void ShipThread(ThreadParams* params) {
 }
 
 void BoxThread(ThreadParams* params) {
+    DWORD dwWaitResult;
     while (params->isGameRunning()) {
         if (!params->box.isAlive && params->box.explosionType == 0) {
             // Respawn box
@@ -229,11 +233,11 @@ void BoxThread(ThreadParams* params) {
                 (params->box.y + params->box.height >= params->ship.y &&
                     params->box.x + params->box.width >= params->ship.x &&
                     params->box.x <= params->ship.x + params->ship.width)) {
-                    params->life.count--;
-                    PlaySound("sound/crash.wav", NULL, SND_ASYNC);
-                    params->box.isAlive = false;
-                    if(params->life.count == 0)
-                      *(params->gameRunning) = false;
+                params->life.count--;
+                PlaySound("sound/crash.wav", NULL, SND_ASYNC);
+                params->box.isAlive = false;
+                if (params->life.count == 0)
+                    *(params->gameRunning) = false;
 
             }
         }
@@ -241,19 +245,52 @@ void BoxThread(ThreadParams* params) {
     }
 }
 
-void BulletThread(ThreadParams* params) {
+
+void* FireKeyPressed(ThreadParams* params) {
+    DWORD dwWaitResult;
+    while (1)
+    {
+        if (keypressed == 32) {
+            dwWaitResult = WaitForSingleObject(HMutex, 100);
+            if (dwWaitResult == WAIT_OBJECT_0)
+            {
+                PlaySound("sound/shoot.wav", NULL, SND_ASYNC);
+                params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
+                params->bullet.y = params->ship.y - params->bullet.height;
+                params->bullet.isAlive = true;
+                keypressed = 0;
+                ReleaseMutex(HMutex);
+            }
+        };
+
+    }
+    return 0;
+}
+
+void* BulletThread(ThreadParams* params) {
     while (params->isGameRunning()) {
         // Create Bullet
-        if (keypressed == 32 && !params->bullet.isAlive) {
-            PlaySound("sound/shoot.wav", NULL, SND_ASYNC);
-            params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
-            params->bullet.y = params->ship.y - params->bullet.height;
-            params->bullet.isAlive = true;
-            keypressed = 0;
-        }
+       // if (keypressed == 32 && !params->bullet.isAlive) {
+
+        bool mutexTaken = false;
         // Move Bullet
-        if (params->bullet.isAlive) {
+        while (1)
+        {
+            if (!params->bullet.isAlive)
+            {
+                if(mutexTaken)
+                    mutexTaken = ReleaseMutex(HMutex) == FALSE;
+                continue;
+            }
+
+            if (!mutexTaken)
+            {
+                WaitForSingleObject(HMutex, INFINITE);
+                mutexTaken = true;
+            }
+
             params->bullet.y -= 10;
+
             if (params->box.isAlive &&
                 params->bullet.y <= params->box.y + params->box.height &&
                 params->bullet.y + params->bullet.height >= params->box.y &&
@@ -293,18 +330,31 @@ void BulletThread(ThreadParams* params) {
                     PlaySound("sound/miss.wav", NULL, SND_ASYNC);
                     params->box.explosionType = 3;
                 }
+
                 params->box.isAlive = false;
                 params->bullet.isAlive = false;
+
+
+
+
             }
             // Screen overflow check
             if (params->bullet.y < 40) {
+
                 params->bullet.isAlive = false;
+
             }
+
+            Sleep(30);
+            FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+           
+            // Sleep(10);
         }
-        Sleep(30);
-        FillRect(screenMatrix, 0, 0, 500, 40, 0x333333);
+
     }
+    return 0;
 }
+
 
 // Drawing Thread
 void DrawThread(ThreadParams* params) {
@@ -313,11 +363,24 @@ void DrawThread(ThreadParams* params) {
     char score[9] = "Score:  ";
 
     //Intro animation
-    PlaySound("sound/intro.wav", NULL, SND_ASYNC);
-    DrawStartupAndTransition(params);
+   // PlaySound("sound/intro.wav", NULL, SND_ASYNC);
+   // DrawStartupAndTransition(params);
+
+    DWORD dw;
+    HMutex = CreateMutex(
+        NULL,              // default security attributes
+        FALSE,             // initially not owned
+        NULL);    //it doesn't have a name LPCTSTR lpName
+
+
+
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
-    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, NULL);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FireKeyPressed, params, 0, &dw);
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BulletThread, params, 0, &dw);
+
+
+
     while (params->isGameRunning()) {
         // Clear screen
         screenMatrix = 0;
@@ -363,12 +426,15 @@ void DrawThread(ThreadParams* params) {
         }
 
 
+
+
         score[6] = '0' + params->score;
         Impress12x20(screenMatrix, 400, 13, score, 0xFFFFFF);
 
         DisplayImage(params->FRM1, screenMatrix);
         Sleep(30);
     }
+
     Sleep(50);
     if (params->score > 9) {
         screenMatrix = 0x005500;
@@ -377,7 +443,7 @@ void DrawThread(ThreadParams* params) {
 
     }
     else {
-        
+
         PlaySound("sound/death.wav", NULL, SND_ASYNC);
 
         //delete objects
@@ -399,14 +465,14 @@ void StartGame(void* gameRunning) {
     if (*gameRunningPtr) return;
 
     *gameRunningPtr = true;
-  
+
     // Reset the screen
     screenMatrix = 0;
 
     // Define ThreadParams
     int gameScreenX = 500, GameScreenY = 500;
     int shipX = 250, shipY = 485;
-    int boxSize = 40,boxY = 40;
+    int boxSize = 40, boxY = 40;
     int bulletWidth = 2, bulletHeight = 10;
     int life = 3;
     int score = 0;
