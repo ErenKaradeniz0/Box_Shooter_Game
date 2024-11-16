@@ -363,8 +363,8 @@ void DrawThread(ThreadParams* params) {
     char score[9] = "Score:  ";
 
     //Intro animation
-   // PlaySound("sound/intro.wav", NULL, SND_ASYNC);
-   // DrawStartupAndTransition(params);
+   PlaySound("sound/intro.wav", NULL, SND_ASYNC);
+   DrawStartupAndTransition(params);
 
     DWORD dw;
     HMutex = CreateMutex(
