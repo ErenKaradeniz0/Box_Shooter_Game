@@ -7,9 +7,7 @@ object and the keypressed variable.
 */
 int keypressed;
 ICBYTES screenMatrix;
-
 HANDLE HMutex;
-
 
 struct GameObject {
     int x, y;
@@ -215,7 +213,6 @@ void ShipThread(ThreadParams* params) {
 }
 
 void BoxThread(ThreadParams* params) {
-    DWORD dwWaitResult;
     while (params->isGameRunning()) {
         if (!params->box.isAlive && params->box.explosionType == 0) {
             // Respawn box
@@ -248,17 +245,17 @@ void BoxThread(ThreadParams* params) {
 
 void* FireKeyPressed(ThreadParams* params) {
     DWORD dwWaitResult;
-    while (1)
+    while (params->isGameRunning())
     {
         if (keypressed == 32) {
-            dwWaitResult = WaitForSingleObject(HMutex, 100);
+            keypressed = 0;
+            dwWaitResult = WaitForSingleObject(HMutex, 100); //wait 100Ms
             if (dwWaitResult == WAIT_OBJECT_0)
             {
                 PlaySound("sound/shoot.wav", NULL, SND_ASYNC);
                 params->bullet.x = params->ship.x + (params->ship.width / 2) - (params->bullet.width / 2);
                 params->bullet.y = params->ship.y - params->bullet.height;
                 params->bullet.isAlive = true;
-                keypressed = 0;
                 ReleaseMutex(HMutex);
             }
         };
@@ -373,7 +370,6 @@ void DrawThread(ThreadParams* params) {
         NULL);    //it doesn't have a name LPCTSTR lpName
 
 
-
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)ShipThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)BoxThread, params, 0, NULL);
     CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)FireKeyPressed, params, 0, &dw);
@@ -436,6 +432,7 @@ void DrawThread(ThreadParams* params) {
     }
 
     Sleep(50);
+    screenMatrix = 0;
     if (params->score > 9) {
         screenMatrix = 0x005500;
         Impress12x20(screenMatrix, 200, 250, "You win!", 0xFFFFFF);
@@ -482,7 +479,7 @@ void StartGame(void* gameRunning) {
         {shipX, shipY, 40, 10, true, 0, 0},                                         //ship
         {rand() % (gameScreenX - boxSize) , boxY, boxSize, boxSize, true, 0, 0},    //box
         {0, 0, bulletWidth, bulletHeight, false, 0, 0},                             //bullet
-        {life,10,10,3},                                                                //heart
+        {life,10,10,3},                                                             //heart
         ICG_FrameMedium(5, 40, 1, 1),                                               //frame
         score,                                                                      //score
         gameRunningPtr                                                              //gameRunning
